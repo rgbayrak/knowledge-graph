@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Worklist</title>
+<script src="common.js"></script>
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<style>/* ---- Theme tokens (dark default; light via ☀/🌙 toggle or OS preference) ---- */
+:root{color-scheme:dark;--row:#12122a22;--bg:#0d0d1a;--bg2:#0f0f20;--panel:#12122a;--surface:#1a1a38;--btn2:#1e1e40;--border:#2a2a50;--link:#3a3a6a;--c444:#444;--c555:#555;--c666:#666;--c888:#888;--c999:#999;--caaa:#aaa;--cccc:#ccc;--cddd:#ddd;--text:#e0e0f0;--tint-pink:#2a0a18;--tint-amber:#221a08;--tint-yellow:#1a1a08;--tint-green:#0f2a22;--tint-teal:#0a1a1a;--accent:#818cf8;--strong:#fff;--shadow:rgba(0,0,0,.6)}
+:root[data-theme="light"]{color-scheme:light;--row:rgba(30,30,60,.04);--bg:#f4f5fa;--bg2:#eef0f6;--panel:#ffffff;--surface:#eef0f7;--btn2:#e8eaf3;--border:#d9dcea;--link:#b4b8d4;--c444:#7d809a;--c555:#6b6e8a;--c666:#5f627e;--c888:#555870;--c999:#4f5269;--caaa:#3f4259;--cccc:#2e3048;--cddd:#262840;--text:#1d1e35;--tint-pink:#fde7f1;--tint-amber:#ffefcc;--tint-yellow:#fff6db;--tint-green:#dff7ee;--tint-teal:#dff5f5;--accent:#4f46e5;--strong:#1d1e35;--shadow:rgba(30,30,60,.18)}
+@media (prefers-color-scheme: light){:root:not([data-theme="dark"]){color-scheme:light;--row:rgba(30,30,60,.04);--bg:#f4f5fa;--bg2:#eef0f6;--panel:#ffffff;--surface:#eef0f7;--btn2:#e8eaf3;--border:#d9dcea;--link:#b4b8d4;--c444:#7d809a;--c555:#6b6e8a;--c666:#5f627e;--c888:#555870;--c999:#4f5269;--caaa:#3f4259;--cccc:#2e3048;--cddd:#262840;--text:#1d1e35;--tint-pink:#fde7f1;--tint-amber:#ffefcc;--tint-yellow:#fff6db;--tint-green:#dff7ee;--tint-teal:#dff5f5;--accent:#4f46e5;--strong:#1d1e35;--shadow:rgba(30,30,60,.18)}}
+
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;flex-direction:column}
+
+/* ---- Header ---- */
+#header{background:var(--panel);padding:12px 20px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border)}
+#header h1{font-size:17px;font-weight:700;color:var(--accent)}
+.header-actions{display:flex;gap:8px;align-items:center}
+#theme-btn{font-size:13px;line-height:1;min-width:30px}
+
+/* ---- Layout ---- */
+#app{display:flex;flex:1;overflow:hidden;height:calc(100vh - 48px)}
+
+/* ---- Sidebar ---- */
+#sidebar{width:260px;background:var(--panel);border-right:1px solid var(--border);padding:16px;display:flex;flex-direction:column;gap:14px;overflow-y:auto;flex-shrink:0}
+
+/* ---- Add form ---- */
+.add-form{}
+.add-form h3{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--c555);margin-bottom:10px}
+input[type=text],textarea,select{width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:7px 10px;border-radius:8px;font-size:12px;outline:none;font-family:inherit}
+input:focus,textarea:focus,select:focus{border-color:var(--accent)}
+textarea{resize:none;height:60px}
+.form-g{margin-bottom:10px}
+label{display:block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--c555);margin-bottom:4px}
+
+/* ---- Category pills ---- */
+.cat-picker{display:flex;flex-wrap:wrap;gap:5px;margin-top:2px}
+.cat-pill{padding:4px 10px;border-radius:20px;border:2px solid transparent;cursor:pointer;font-size:11px;font-weight:600;transition:all .2s;opacity:.5}
+.cat-pill.sel{opacity:1;border-color:currentColor}
+.cat-pill:hover{opacity:.85}
+
+/* ---- Priority dots ---- */
+.prio-row{display:flex;gap:6px;margin-top:4px}
+.prio-dot{width:20px;height:20px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:all .2s}
+.prio-dot.sel{border-color:#fff;transform:scale(1.15)}
+
+/* ---- Buttons ---- */
+.btn{padding:7px 14px;border-radius:8px;border:none;cursor:pointer;font-size:12px;font-weight:600;transition:all .2s}
+.btn-primary{background:#4361ee;color:#fff}.btn-primary:hover{background:#3451d1}
+.btn-secondary{background:var(--btn2);color:var(--caaa);border:1px solid var(--border)}.btn-secondary:hover{background:var(--border)}
+.btn-danger{background:#f72585;color:#fff}.btn-danger:hover{opacity:.85}
+.btn-sm{padding:4px 10px;font-size:11px}
+.btn-full{width:100%;justify-content:center}
+
+/* ---- Filter chips ---- */
+.filter-row{display:flex;flex-wrap:wrap;gap:5px}
+.filter-chip{padding:4px 10px;border-radius:14px;cursor:pointer;font-size:11px;font-weight:600;background:var(--btn2);color:var(--c888);border:1px solid var(--border);transition:all .2s}
+.filter-chip:hover{background:var(--border);color:var(--caaa)}
+.filter-chip.active{color:#fff;border-color:currentColor}
+
+/* ---- Main area ---- */
+#main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+
+/* ---- View tabs ---- */
+.view-bar{background:var(--panel);border-bottom:1px solid var(--border);display:flex;padding:0 16px;gap:2px}
+.view-btn{padding:9px 16px;background:none;border:none;color:var(--c666);cursor:pointer;font-size:12px;font-weight:600;transition:all .2s;border-bottom:2px solid transparent}
+.view-btn:hover{color:var(--caaa)}
+.view-btn.active{color:var(--accent);border-bottom-color:var(--accent)}
+
+/* ---- List view ---- */
+#list-view{flex:1;overflow-y:auto;padding:16px}
+.section-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--c444);margin:16px 0 8px;padding-bottom:6px;border-bottom:1px solid var(--btn2)}
+.section-title:first-child{margin-top:0}
+
+/* ---- Task item (built with D3 SVG inline) ---- */
+.task-row{display:flex;align-items:flex-start;gap:10px;padding:9px 12px;border-radius:12px;margin-bottom:6px;cursor:pointer;transition:background .2s;border:1px solid transparent;position:relative}
+.task-row:hover{background:var(--panel);border-color:var(--border)}
+.task-row.done{opacity:.45}
+.task-check{flex-shrink:0;margin-top:1px}
+.task-body{flex:1;min-width:0}
+.task-title{font-size:13px;font-weight:500;line-height:1.4}
+.task-done .task-title{text-decoration:line-through;color:var(--c555)}
+.task-sub{font-size:11px;color:var(--c555);margin-top:2px}
+.task-pills{display:flex;gap:5px;margin-top:5px;flex-wrap:wrap}
+.task-pill{padding:2px 8px;border-radius:10px;font-size:10px;font-weight:600}
+.task-actions{display:flex;gap:4px;flex-shrink:0;opacity:0;transition:opacity .2s}
+.task-row:hover .task-actions{opacity:1}
+.act-btn{padding:3px 7px;border-radius:6px;border:none;cursor:pointer;font-size:10px;background:var(--btn2);color:var(--c888);transition:all .2s}
+.act-btn:hover{background:var(--border);color:var(--text)}
+.act-btn.del:hover{background:#f72585;color:#fff}
+
+/* ---- Bubble view ---- */
+#bubble-view{flex:1;position:relative;overflow:hidden;display:none}
+#bubble-view.active{display:block}
+#list-view.hidden{display:none}
+
+/* ---- Progress ---- */
+#progress-bar{height:3px;background:var(--btn2);flex-shrink:0}
+#progress-fill{height:100%;background:linear-gradient(90deg,#4361ee,var(--accent));transition:width .5s ease;border-radius:0 3px 3px 0}
+
+/* ---- Stats row ---- */
+.stats-strip{display:flex;gap:12px;padding:10px 16px;border-bottom:1px solid var(--btn2);flex-shrink:0;background:var(--bg)}
+.stat-pill{padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700;background:var(--btn2)}
+.stat-num{color:var(--accent)}
+
+/* ---- Toast ---- */
+#toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(10px);background:var(--btn2);color:var(--text);border:1px solid var(--border);padding:7px 16px;border-radius:8px;font-size:12px;opacity:0;transition:all .3s;z-index:2000;pointer-events:none}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* ---- Scrollbar ---- */
+::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:var(--bg)}::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+
+/* ---- Empty ---- */
+.empty{text-align:center;padding:40px 20px;color:var(--c444);font-size:13px}
+
+/* ---- Due date ---- */
+.due-badge{font-size:10px;padding:2px 6px;border-radius:6px;background:var(--btn2);color:var(--c666)}
+.due-badge.overdue{background:var(--tint-pink);color:#f72585}
+.due-badge.today{background:var(--tint-yellow);color:#f77f00}
+.due-badge.soon{background:var(--tint-teal);color:#06d6a0}
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div id="header">
+  <h1>✓ Worklist</h1>
+  <div class="header-actions">
+    <span id="save-status" style="font-size:11px;color:var(--c555)"></span>
+    <button class="btn btn-secondary btn-sm" id="btn-clear-done">Clear done</button>
+    <button class="btn btn-secondary btn-sm" id="btn-export">⬇ Export</button>
+    <button class="btn btn-secondary btn-sm" id="theme-btn" onclick="toggleTheme()" aria-label="Toggle dark/light theme"></button>
+  </div>
+</div>
+
+<div id="app">
+  <!-- Sidebar -->
+  <div id="sidebar">
+    <div class="add-form">
+      <h3>New Task</h3>
+      <div class="form-g">
+        <label>Task</label>
+        <input type="text" id="t-title" placeholder="e.g. Read BERT paper" />
+      </div>
+      <div class="form-g">
+        <label>Notes</label>
+        <textarea id="t-notes" placeholder="Optional details..."></textarea>
+      </div>
+      <div class="form-g">
+        <label>Category</label>
+        <div class="cat-picker" id="cat-picker"></div>
+        <input type="text" id="t-new-cat" placeholder="Or type new category..." style="margin-top:6px" />
+      </div>
+      <div class="form-g">
+        <label>Priority</label>
+        <div class="prio-row" id="prio-row"></div>
+      </div>
+      <div class="form-g">
+        <label>Due Date</label>
+        <input type="text" id="t-due" placeholder="e.g. 2026-07-01 or 'this week'" />
+      </div>
+      <button class="btn btn-primary btn-full" id="btn-add" style="margin-top:4px">+ Add Task</button>
+    </div>
+
+    <hr style="border:none;border-top:1px solid var(--btn2)">
+
+    <div>
+      <h3 style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--c555);margin-bottom:8px">Filter</h3>
+      <div class="filter-row" id="filter-cats"></div>
+      <div class="filter-row" style="margin-top:8px" id="filter-prio"></div>
+    </div>
+  </div>
+
+  <!-- Main -->
+  <div id="main">
+    <!-- Progress -->
+    <div id="progress-bar"><div id="progress-fill" style="width:0%"></div></div>
+
+    <!-- Stats -->
+    <div class="stats-strip" id="stats-strip"></div>
+
+    <!-- View bar -->
+    <div class="view-bar">
+      <button class="view-btn active" data-view="list">List</button>
+      <button class="view-btn" data-view="bubbles">Bubbles</button>
+    </div>
+
+    <!-- List view -->
+    <div id="list-view"></div>
+
+    <!-- Bubble view -->
+    <div id="bubble-view">
+      <svg id="bubble-svg" style="width:100%;height:100%"></svg>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ============================================================
+// CONSTANTS
+// ============================================================
+const CATS = [
+  {name:'Reading',   color:'#4361ee'},
+  {name:'Writing',   color:'#7209b7'},
+  {name:'Coding',    color:'#4cc9f0'},
+  {name:'Review',    color:'#06d6a0'},
+  {name:'Meeting',   color:'#f72585'},
+  {name:'Research',  color:'#f77f00'},
+  {name:'Admin',     color:'#818cf8'},
+];
+const PRIOS = [
+  {label:'Low',    color:'#3a3a6a'},
+  {label:'Medium', color:'#f77f00'},
+  {label:'High',   color:'#f72585'},
+];
+
+// ============================================================
+// STATE
+// ============================================================
+let tasks = [];
+let customCats = [];
+let selectedCat = null;
+let selectedPrio = 1; // 0=low,1=med,2=high
+let filterCat = null;
+let filterPrio = null;
+let currentView = 'list';
+
+// ============================================================
+// INIT
+// ============================================================
+function init() {
+  loadStorage();
+  renderCatPicker();
+  renderPrioPicker();
+  renderFilterChips();
+  setupUI();
+  renderList();
+  renderBubbles();
+  updateStats();
+}
+
+// ============================================================
+// STORAGE
+// ============================================================
+function save() {
+  localStorage.setItem('ml-todo', JSON.stringify({tasks, customCats}));
+  document.getElementById('save-status').textContent = 'Saved ✓';
+  setTimeout(()=>document.getElementById('save-status').textContent='',2000);
+}
+
+function loadStorage() {
+  try {
+    const d = localStorage.getItem('ml-todo');
+    if (d) { const p=JSON.parse(d); tasks=p.tasks||[]; customCats=p.customCats||[]; }
+  } catch(_) {}
+}
+
+function allCats() { return [...CATS, ...customCats.map(n=>({name:n,color:catColor(n)}))] }
+
+function catColor(name) {
+  const found = [...CATS,...customCats.map(n=>({name:n,color:autoColor(n)}))].find(c=>c.name===name);
+  return found?.color || autoColor(name);
+}
+function autoColor(name) {
+  const colors=['#4361ee','#7209b7','#4cc9f0','#06d6a0','#f72585','#f77f00','#818cf8','#c77dff','#f4a261','#2ec4b6'];
+  let h=0; for(let c of name) h=(h*31+c.charCodeAt(0))%colors.length;
+  return colors[Math.abs(h)];
+}
+
+// ============================================================
+// PICKERS
+// ============================================================
+function renderCatPicker() {
+  const el = document.getElementById('cat-picker');
+  el.innerHTML='';
+  allCats().forEach(cat=>{
+    const div=document.createElement('div');
+    div.className='cat-pill'+(selectedCat===cat.name?' sel':'');
+    div.style.color=cat.color;
+    div.style.background=cat.color+'18';
+    div.textContent=cat.name;
+    div.onclick=()=>{
+      selectedCat = selectedCat===cat.name?null:cat.name;
+      renderCatPicker();
+    };
+    el.appendChild(div);
+  });
+}
+
+function renderPrioPicker() {
+  const el=document.getElementById('prio-row');
+  el.innerHTML='';
+  PRIOS.forEach((p,i)=>{
+    const div=document.createElement('div');
+    div.className='prio-dot'+(selectedPrio===i?' sel':'');
+    div.style.background=p.color;
+    div.title=p.label;
+    div.onclick=()=>{selectedPrio=i;renderPrioPicker();};
+    el.appendChild(div);
+    const lbl=document.createElement('span');
+    lbl.style.cssText='font-size:11px;color:var(--c555);align-self:center';
+    lbl.textContent=p.label;
+    el.appendChild(lbl);
+  });
+}
+
+function renderFilterChips() {
+  const fcat=document.getElementById('filter-cats');
+  fcat.innerHTML='';
+  [{name:'All',color:'#818cf8'},...allCats()].forEach(cat=>{
+    const div=document.createElement('div');
+    div.className='filter-chip'+(filterCat===cat.name||(cat.name==='All'&&!filterCat)?' active':'');
+    if(filterCat===cat.name||cat.name==='All') div.style.color=filterCat?cat.color:'#818cf8';
+    div.style.borderColor=(filterCat===cat.name||(!filterCat&&cat.name==='All'))?cat.color:'transparent';
+    div.textContent=cat.name;
+    div.onclick=()=>{filterCat=cat.name==='All'?null:cat.name;renderFilterChips();renderList();renderBubbles();};
+    fcat.appendChild(div);
+  });
+
+  const fprio=document.getElementById('filter-prio');
+  fprio.innerHTML='';
+  [{label:'Any',color:'#818cf8'},...PRIOS].forEach((p,i)=>{
+    const actualPrio = i===0?null:i-1;
+    const div=document.createElement('div');
+    div.className='filter-chip'+(filterPrio===actualPrio?' active':'');
+    if(filterPrio===actualPrio) div.style.color=p.color;
+    div.style.borderColor=filterPrio===actualPrio?p.color:'transparent';
+    div.textContent=p.label;
+    div.onclick=()=>{filterPrio=actualPrio;renderFilterChips();renderList();renderBubbles();};
+    fprio.appendChild(div);
+  });
+}
+
+// ============================================================
+// TASK CRUD
+// ============================================================
+function addTask() {
+  const title=document.getElementById('t-title').value.trim();
+  if (!title) { toast('Enter a task title'); return; }
+
+  let cat = selectedCat;
+  const newCat=document.getElementById('t-new-cat').value.trim();
+  if (newCat) {
+    cat=newCat;
+    if (!customCats.includes(newCat)&&!CATS.find(c=>c.name===newCat)) { customCats.push(newCat); }
+    document.getElementById('t-new-cat').value='';
+  }
+
+  tasks.push({
+    id: uid(),
+    title,
+    notes: document.getElementById('t-notes').value.trim(),
+    category: cat||'Research',
+    priority: selectedPrio,
+    due: document.getElementById('t-due').value.trim(),
+    done: false,
+    created: new Date().toISOString()
+  });
+
+  document.getElementById('t-title').value='';
+  document.getElementById('t-notes').value='';
+  document.getElementById('t-due').value='';
+
+  save(); renderCatPicker(); renderFilterChips(); renderList(); renderBubbles(); updateStats();
+  toast('Task added');
+}
+
+function toggleDone(id) {
+  const t=tasks.find(t=>t.id===id);
+  if (t) { t.done=!t.done; t.completedAt=t.done?new Date().toISOString():null; }
+  save(); renderList(); renderBubbles(); updateStats();
+}
+
+async function deleteTask(id) {
+  const t=tasks.find(t=>t.id===id); if(!t) return;
+  if (!await confirmDelete('Delete this task?', t.title)) return;
+  tasks=tasks.filter(t=>t.id!==id);
+  save(); renderList(); renderBubbles(); updateStats();
+}
+
+// ============================================================
+// RENDER LIST (D3)
+// ============================================================
+function filteredTasks() {
+  return tasks.filter(t=>{
+    if (filterCat&&t.category!==filterCat) return false;
+    if (filterPrio!==null&&t.priority!==filterPrio) return false;
+    return true;
+  });
+}
+
+function renderList() {
+  const el=document.getElementById('list-view');
+  const ft=filteredTasks();
+  const active=ft.filter(t=>!t.done).sort((a,b)=>b.priority-a.priority);
+  const done=ft.filter(t=>t.done);
+
+  if (!ft.length) { el.innerHTML='<div class="empty">No tasks · Add one from the sidebar</div>'; return; }
+
+  // Use D3 to build the list
+  const container=d3.select('#list-view');
+  container.selectAll('.task-row').remove();
+  container.selectAll('.section-title').remove();
+  container.selectAll('.empty').remove();
+
+  if (active.length) {
+    container.append('div').attr('class','section-title').text(`Active (${active.length})`);
+    renderTaskRows(container, active);
+  }
+  if (done.length) {
+    container.append('div').attr('class','section-title').text(`Done (${done.length})`);
+    renderTaskRows(container, done);
+  }
+}
+
+function renderTaskRows(container, taskList) {
+  const rows=container.selectAll(null).data(taskList).enter().append('div')
+    .attr('class',d=>'task-row'+(d.done?' task-done':''))
+    .style('background','var(--row)')
+    .on('mouseenter', function(){ d3.select(this).style('background','var(--panel)'); })
+    .on('mouseleave', function(d){ d3.select(this).style('background',d.done?'transparent':'var(--row)'); });
+
+  // Checkbox SVG
+  const checkSvg=rows.append('div').attr('class','task-check')
+    .append('svg').attr('width',22).attr('height',22)
+    .style('cursor','pointer')
+    .on('click',(ev,d)=>{ ev.stopPropagation(); toggleDone(d.id); });
+
+  checkSvg.append('circle').attr('cx',11).attr('cy',11).attr('r',9)
+    .attr('fill',d=>d.done?catColor(d.category)+'cc':'transparent')
+    .attr('stroke',d=>catColor(d.category)).attr('stroke-width',2);
+
+  checkSvg.filter(d=>d.done).append('path')
+    .attr('d','M6,11 L10,15 L17,8').attr('stroke','#fff').attr('stroke-width',2)
+    .attr('fill','none').attr('stroke-linecap','round').attr('stroke-linejoin','round');
+
+  // Body
+  const body=rows.append('div').attr('class','task-body');
+  body.append('div').attr('class','task-title').text(d=>d.title);
+  body.filter(d=>d.notes).append('div').attr('class','task-sub').text(d=>d.notes);
+
+  // Pills row
+  const pillRow=body.append('div').attr('class','task-pills');
+  pillRow.append('span').attr('class','task-pill')
+    .style('background',d=>catColor(d.category)+'22')
+    .style('color',d=>catColor(d.category))
+    .text(d=>d.category);
+  pillRow.append('span').attr('class','task-pill')
+    .style('background',d=>PRIOS[d.priority].color+'22')
+    .style('color',d=>PRIOS[d.priority].color)
+    .text(d=>PRIOS[d.priority].label);
+  pillRow.filter(d=>d.due).append('span')
+    .attr('class',d=>{ const s=dueStatus(d.due); return 'due-badge '+(s||''); })
+    .text(d=>d.due);
+
+  // Action buttons
+  const actions=rows.append('div').attr('class','task-actions');
+  actions.append('button').attr('class','act-btn del').text('✕')
+    .on('click',(ev,d)=>{ ev.stopPropagation(); deleteTask(d.id); });
+
+  // Priority stripe on left
+  rows.style('border-left',d=>`3px solid ${PRIOS[d.priority].color}`);
+}
+
+// ============================================================
+// RENDER BUBBLES (D3 force)
+// ============================================================
+function renderBubbles() {
+  if (currentView!=='bubbles') return;
+  const ft=filteredTasks();
+  const c=document.getElementById('bubble-view');
+  const W=c.clientWidth, H=c.clientHeight;
+  const svg=d3.select('#bubble-svg').attr('width',W).attr('height',H);
+  svg.selectAll('*').remove();
+
+  if (!ft.length) {
+    svg.append('text').attr('x',W/2).attr('y',H/2).attr('text-anchor','middle')
+      .style('fill','var(--c444)').attr('font-size','14px').text('No tasks');
+    return;
+  }
+
+  const rScale=d3.scaleSqrt().domain([0,2]).range([28,52]);
+  const nodes=ft.map(t=>({...t, r:rScale(t.priority)}));
+
+  const sim=d3.forceSimulation(nodes)
+    .force('charge',d3.forceManyBody().strength(-60))
+    .force('center',d3.forceCenter(W/2,H/2))
+    .force('collide',d3.forceCollide(d=>d.r+8).strength(.9))
+    .stop();
+
+  for(let i=0;i<120;i++) sim.tick();
+
+  // Category group labels using convex hulls
+  const bycat=d3.group(nodes,n=>n.category);
+  bycat.forEach((grpNodes,cat)=>{
+    if (grpNodes.length<3) return;
+    const pts=grpNodes.map(n=>[n.x,n.y]);
+    const hull=d3.polygonHull(pts);
+    if (!hull) return;
+    svg.append('path')
+      .attr('d',hull.map((p,i)=>`${i?'L':'M'}${p[0]},${p[1]}`).join(' ')+'Z')
+      .attr('fill',catColor(cat)).attr('fill-opacity',.05)
+      .attr('stroke',catColor(cat)).attr('stroke-opacity',.2).attr('stroke-width',16);
+  });
+
+  const g=svg.selectAll('.bub').data(nodes).enter().append('g').attr('class','bub')
+    .attr('transform',d=>`translate(${d.x},${d.y})`).style('cursor','pointer')
+    .on('click',(_,d)=>toggleDone(d.id));
+
+  g.append('circle').attr('r',d=>d.r)
+    .attr('fill',d=>catColor(d.category))
+    .attr('fill-opacity',d=>d.done?.3:.82)
+    .attr('stroke',d=>catColor(d.category))
+    .attr('stroke-width',d=>d.done?1:2.5)
+    .attr('stroke-dasharray',d=>d.done?'4,3':null);
+
+  // Priority ring
+  g.filter(d=>d.priority===2).append('circle').attr('r',d=>d.r+6)
+    .attr('fill','none').attr('stroke','#f72585').attr('stroke-width',1.5).attr('stroke-opacity',.6)
+    .attr('stroke-dasharray','3,3');
+
+  g.append('text').attr('text-anchor','middle').attr('dominant-baseline','central')
+    .attr('fill','#fff').attr('font-size',d=>d.r>36?'12px':'10px')
+    .attr('pointer-events','none')
+    .text(d=>{ const t=d.title; return t.length>14?t.slice(0,12)+'…':t; });
+
+  // Done check overlay
+  g.filter(d=>d.done).append('text').attr('text-anchor','middle').attr('y',d=>d.r-10)
+    .attr('font-size','14px').attr('fill','#fff').attr('fill-opacity',.7)
+    .attr('pointer-events','none').text('✓');
+
+  // Drag
+  g.call(d3.drag()
+    .on('start',function(){ d3.select(this).raise(); })
+    .on('drag',(ev,d)=>{ d.x=ev.x; d.y=ev.y; d3.select(this).attr('transform',`translate(${ev.x},${ev.y})`); })
+  );
+}
+
+// ============================================================
+// STATS
+// ============================================================
+function updateStats() {
+  const total=tasks.length, done=tasks.filter(t=>t.done).length;
+  const pct=total?Math.round(done/total*100):0;
+  document.getElementById('progress-fill').style.width=pct+'%';
+
+  const high=tasks.filter(t=>!t.done&&t.priority===2).length;
+  document.getElementById('stats-strip').innerHTML=`
+    <span class="stat-pill"><span class="stat-num">${total}</span> total</span>
+    <span class="stat-pill"><span class="stat-num">${done}</span> done</span>
+    <span class="stat-pill"><span class="stat-num">${total-done}</span> active</span>
+    <span class="stat-pill" style="color:#f72585"><span class="stat-num">${high}</span> high-prio</span>
+    <span class="stat-pill" style="color:#818cf8"><span class="stat-num">${pct}%</span> complete</span>
+  `;
+}
+
+function dueStatus(due) {
+  if (!due) return '';
+  const lower=due.toLowerCase();
+  if (lower==='today'||lower==='now') return 'today';
+  if (lower==='this week'||lower==='soon') return 'soon';
+  const d=new Date(due);
+  if (isNaN(d)) return '';
+  const now=new Date(); now.setHours(0,0,0,0);
+  const diff=Math.ceil((d-now)/(1000*60*60*24));
+  if (diff<0) return 'overdue';
+  if (diff===0) return 'today';
+  if (diff<=3) return 'soon';
+  return '';
+}
+
+// ============================================================
+// UI SETUP
+// ============================================================
+function setupUI() {
+  document.getElementById('btn-add').addEventListener('click',addTask);
+  document.getElementById('t-title').addEventListener('keydown',e=>{ if(e.key==='Enter') addTask(); });
+
+  document.getElementById('btn-clear-done').addEventListener('click',async ()=>{
+    const n=tasks.filter(t=>t.done).length;
+    if (!n) { toast('No completed tasks'); return; }
+    if (!await confirmDelete(`Delete ${n} completed task${n===1?'':'s'}?`, 'Clear done removes them from the list for good.')) return;
+    tasks=tasks.filter(t=>!t.done);
+    save(); renderList(); renderBubbles(); updateStats();
+    toast('Cleared completed tasks');
+  });
+
+  document.getElementById('btn-export').addEventListener('click',()=>{
+    const a=Object.assign(document.createElement('a'),{
+      href:URL.createObjectURL(new Blob([JSON.stringify({tasks,customCats},null,2)],{type:'application/json'})),
+      download:'worklist.json'
+    });
+    a.click(); URL.revokeObjectURL(a.href);
+    toast('Exported worklist.json');
+  });
+
+  document.querySelectorAll('.view-btn').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      document.querySelectorAll('.view-btn').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      currentView=btn.dataset.view;
+      document.getElementById('list-view').classList.toggle('hidden', currentView==='bubbles');
+      document.getElementById('bubble-view').classList.toggle('active', currentView==='bubbles');
+      if(currentView==='bubbles') renderBubbles();
+    });
+  });
+
+  window.addEventListener('resize',()=>{ if(currentView==='bubbles') renderBubbles(); });
+}
+
+init();
+</script>
+</body>
+</html>

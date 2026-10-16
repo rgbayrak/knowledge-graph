@@ -1,0 +1,1767 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Literature</title>
+<script src="common.js"></script>
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<style>/* ---- Theme tokens (dark default; light via ☀/🌙 toggle or OS preference) ---- */
+:root{color-scheme:dark;--bg:#0d0d1a;--bg2:#0f0f20;--panel:#12122a;--surface:#1a1a38;--btn2:#1e1e40;--border:#2a2a50;--link:#3a3a6a;--c444:#444;--c555:#555;--c666:#666;--c888:#888;--c999:#999;--caaa:#aaa;--cccc:#ccc;--cddd:#ddd;--text:#e0e0f0;--tint-pink:#2a0a18;--tint-amber:#221a08;--tint-yellow:#1a1a08;--tint-green:#0f2a22;--tint-teal:#0a1a1a;--accent:#818cf8;--strong:#fff;--shadow:rgba(0,0,0,.6)}
+:root[data-theme="light"]{color-scheme:light;--bg:#f4f5fa;--bg2:#eef0f6;--panel:#ffffff;--surface:#eef0f7;--btn2:#e8eaf3;--border:#d9dcea;--link:#b4b8d4;--c444:#7d809a;--c555:#6b6e8a;--c666:#5f627e;--c888:#555870;--c999:#4f5269;--caaa:#3f4259;--cccc:#2e3048;--cddd:#262840;--text:#1d1e35;--tint-pink:#fde7f1;--tint-amber:#ffefcc;--tint-yellow:#fff6db;--tint-green:#dff7ee;--tint-teal:#dff5f5;--accent:#4f46e5;--strong:#1d1e35;--shadow:rgba(30,30,60,.18)}
+@media (prefers-color-scheme: light){:root:not([data-theme="dark"]){color-scheme:light;--bg:#f4f5fa;--bg2:#eef0f6;--panel:#ffffff;--surface:#eef0f7;--btn2:#e8eaf3;--border:#d9dcea;--link:#b4b8d4;--c444:#7d809a;--c555:#6b6e8a;--c666:#5f627e;--c888:#555870;--c999:#4f5269;--caaa:#3f4259;--cccc:#2e3048;--cddd:#262840;--text:#1d1e35;--tint-pink:#fde7f1;--tint-amber:#ffefcc;--tint-yellow:#fff6db;--tint-green:#dff7ee;--tint-teal:#dff5f5;--accent:#4f46e5;--strong:#1d1e35;--shadow:rgba(30,30,60,.18)}}
+
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);height:100vh;display:flex;flex-direction:column;overflow:hidden}
+
+/* ---- Header ---- */
+#header{background:var(--panel);padding:8px 14px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);flex-shrink:0;gap:12px}
+#header h1{font-size:16px;font-weight:700;color:var(--accent);white-space:nowrap;letter-spacing:.5px}
+.view-tabs{display:flex;gap:4px}
+.view-tab{padding:5px 12px;border-radius:20px;border:1px solid var(--border);background:none;color:var(--c888);cursor:pointer;font-size:12px;font-weight:500;transition:all .2s}
+.view-tab:hover{background:var(--btn2);color:var(--caaa)}
+.view-tab.active{background:#4361ee;color:#fff;border-color:#4361ee}
+.hdr-actions{display:flex;gap:6px;align-items:center}
+#theme-btn{font-size:13px;line-height:1;min-width:30px}
+.node-label{paint-order:stroke;stroke:var(--bg);stroke-width:3px;stroke-linejoin:round}
+
+/* ---- Layout ---- */
+#main{display:flex;flex:1;overflow:hidden}
+
+/* ---- Sidebar ---- */
+#sidebar{width:270px;background:var(--panel);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;overflow:hidden}
+.tab-bar{display:flex;border-bottom:1px solid var(--border);flex-shrink:0}
+.tab-btn{flex:1;padding:9px 4px;background:none;border:none;color:var(--c666);cursor:pointer;font-size:11px;font-weight:600;letter-spacing:.3px;transition:all .2s;text-transform:uppercase}
+.tab-btn:hover{background:var(--surface);color:var(--caaa)}
+.tab-btn.active{color:var(--accent);border-bottom:2px solid var(--accent)}
+.tab-content{display:none;padding:14px;flex:1;overflow-y:auto}
+.tab-content.active{display:block}
+
+/* ---- Forms ---- */
+.form-group{margin-bottom:12px}
+label{display:block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--c666);margin-bottom:5px}
+input[type=text],input[type=number],textarea,select{width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:7px 10px;border-radius:6px;font-size:12px;outline:none;transition:border-color .2s;font-family:inherit}
+input:focus,textarea:focus,select:focus{border-color:var(--accent)}
+textarea{resize:vertical;min-height:70px}
+select option{background:var(--panel)}
+
+/* ---- Buttons ---- */
+.btn{padding:7px 12px;border-radius:6px;border:none;cursor:pointer;font-size:12px;font-weight:600;transition:all .2s;display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+.btn-primary{background:#4361ee;color:#fff}.btn-primary:hover{background:#3451d1}
+.btn-secondary{background:var(--btn2);color:var(--caaa);border:1px solid var(--border)}.btn-secondary:hover{background:var(--border);color:var(--cddd)}
+.btn-danger{background:#f72585;color:#fff}.btn-danger:hover{background:#d61f74}
+.btn-sm{padding:4px 10px;font-size:11px}
+.btn-full{width:100%;justify-content:center}
+
+/* ---- Type selector ---- */
+.type-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:14px}
+.type-card{padding:8px 4px;border-radius:8px;border:2px solid transparent;cursor:pointer;text-align:center;font-size:11px;font-weight:600;transition:all .2s;background:var(--bg)}
+.type-card.selected{border-color:currentColor}
+.type-icon{font-size:16px;display:block;margin-bottom:3px}
+
+/* ---- Graph area ---- */
+#graph-container{flex:1;position:relative;overflow:hidden;background:var(--bg)}
+#graph-svg{width:100%;height:100%}
+
+/* ---- Detail panel ---- */
+#detail-panel{position:absolute;right:0;top:0;bottom:0;width:300px;background:var(--panel);border-left:1px solid var(--border);padding:14px;transform:translateX(100%);transition:transform .3s ease;overflow-y:auto;z-index:10}
+#detail-panel.open{transform:translateX(0)}
+.dp-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px}
+.dp-title{font-size:15px;font-weight:700;line-height:1.3;flex:1;margin-right:8px;min-width:0;overflow-wrap:anywhere}
+.dp-badge{font-size:10px;padding:3px 8px;border-radius:12px;font-weight:700;letter-spacing:.3px;white-space:nowrap}
+.dp-meta{font-size:11px;color:var(--c666);margin-bottom:10px;line-height:1.6}
+.dp-desc{font-size:12px;color:var(--caaa);line-height:1.7;margin-bottom:12px;white-space:pre-wrap;overflow-wrap:anywhere}
+.dp-summary{font-size:12px;color:var(--cddd);line-height:1.6;margin-bottom:10px;padding:8px 10px;background:var(--bg);border-left:3px solid #4361ee;border-radius:4px;overflow-wrap:anywhere}
+.dp-url{display:block;font-size:11px;color:#4cc9f0;margin-bottom:10px;overflow-wrap:anywhere;text-decoration:none}
+.dp-url:hover{text-decoration:underline}
+.tag.proj{background:var(--tint-green);color:#06d6a0;cursor:pointer}
+.dp-section{margin-top:12px}
+.dp-section-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--c555);margin-bottom:8px}
+.conn-item{display:flex;align-items:center;gap:8px;padding:7px 9px;background:var(--bg);border-radius:6px;margin-bottom:5px;cursor:pointer;transition:background .2s;border:1px solid transparent}
+.conn-item:hover{background:var(--surface);border-color:var(--border)}
+.conn-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.conn-name{font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.conn-rel{font-size:10px;color:var(--c666)}
+
+/* ---- Venn view ---- */
+#venn-container{position:absolute;inset:0;background:var(--bg);display:none;flex-direction:column;align-items:center;justify-content:center}
+#venn-container.active{display:flex}
+#venn-controls{position:absolute;top:14px;left:14px;background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:12px;width:220px}
+#venn-svg{width:100%;height:100%}
+
+/* ---- Timeline view ---- */
+#timeline-container{position:absolute;inset:0;background:var(--bg);display:none;overflow:auto}
+#timeline-container.active{display:block}
+#timeline-svg{min-width:100%;min-height:100%}
+
+/* ---- Stats ---- */
+.stat-row{display:flex;gap:8px;margin-bottom:12px}
+.stat-card{flex:1;background:var(--bg);padding:10px;border-radius:8px;text-align:center;border:1px solid var(--btn2)}
+.stat-val{font-size:20px;font-weight:700;color:var(--accent)}
+.stat-lbl{font-size:10px;color:var(--c555);margin-top:2px}
+
+/* ---- Search results ---- */
+.sr-item{display:flex;align-items:center;gap:8px;padding:9px;background:var(--bg);border-radius:6px;margin-bottom:5px;cursor:pointer;transition:background .2s;border:1px solid var(--btn2)}
+.sr-item:hover{background:var(--surface);border-color:var(--border)}
+.sr-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.sr-info{flex:1;min-width:0}
+.sr-label{font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sr-sub{font-size:10px;color:var(--c666)}
+
+/* ---- Tags ---- */
+.tag{display:inline-block;background:var(--btn2);color:var(--accent);padding:2px 7px;border-radius:10px;font-size:10px;margin:2px;font-weight:500}
+.tag.gap{background:var(--tint-pink);color:#f72585}
+
+/* ---- Status bar ---- */
+#status-bar{background:var(--panel);padding:5px 14px;font-size:11px;color:var(--c555);border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.save-dot{width:7px;height:7px;border-radius:50%;background:#06d6a0;display:inline-block;margin-right:6px}
+.save-dot.dirty{background:#f77f00;animation:pulse 1s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* ---- Context menu ---- */
+#ctx-menu{position:fixed;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:5px 0;z-index:1000;display:none;min-width:160px;box-shadow:0 4px 24px var(--shadow)}
+.ctx-item{padding:8px 14px;cursor:pointer;font-size:12px;transition:background .15s}
+.ctx-item:hover{background:var(--border)}
+.ctx-item.danger{color:#f72585}
+
+/* ---- Toast ---- */
+#toast{position:fixed;bottom:44px;left:50%;transform:translateX(-50%) translateY(10px);background:var(--btn2);color:var(--text);border:1px solid var(--border);padding:8px 18px;border-radius:8px;font-size:12px;opacity:0;transition:all .3s;z-index:2000;pointer-events:none}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* ---- Modal ---- */
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:500;align-items:center;justify-content:center}
+.modal-bg.open{display:flex}
+.modal-box{background:var(--panel);padding:22px;border-radius:12px;width:420px;border:1px solid var(--border);max-height:90vh;overflow-y:auto}
+.modal-box h3{margin-bottom:16px;font-size:15px;color:var(--text)}
+
+/* ---- Zoom controls ---- */
+#zoom-controls{position:absolute;bottom:14px;left:14px;display:flex;flex-direction:column;gap:5px;z-index:10}
+
+/* ---- Node highlights ---- */
+.node-circle{cursor:pointer;transition:opacity .2s}
+.link-line{transition:opacity .2s,stroke .2s;pointer-events:visibleStroke}
+.link-hit{stroke:transparent;stroke-width:14;cursor:pointer;fill:none}
+.link-hit:hover~line,.link-hit:hover{stroke-opacity:1}
+.hull{opacity:.08;stroke-width:20;fill-opacity:.06}
+
+/* ---- Link popup ---- */
+#link-popup{position:absolute;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px;z-index:50;display:none;min-width:220px;box-shadow:0 4px 24px var(--shadow)}
+#link-popup.open{display:block}
+#link-popup .lp-from-to{font-size:10px;color:var(--c555);margin-bottom:8px;line-height:1.5}
+#link-popup .lp-from-to strong{color:var(--caaa)}
+
+/* ---- Relink banner ---- */
+#relink-banner{background:var(--tint-yellow);border-bottom:1px solid #f77f0055;padding:6px 14px;font-size:12px;color:#f77f00;display:none;align-items:center;gap:10px;flex-shrink:0;cursor:pointer}
+#relink-banner:hover{background:var(--tint-amber)}
+#relink-banner span{flex:1}
+
+/* ---- Connection edit row ---- */
+.conn-item{display:flex;align-items:center;gap:7px;padding:6px 8px;background:var(--bg);border-radius:6px;margin-bottom:5px;border:1px solid transparent;transition:background .2s}
+.conn-nav{flex:1;min-width:0;cursor:pointer}
+.conn-acts{display:flex;gap:3px;flex-shrink:0;opacity:0;transition:opacity .2s}
+.conn-item:hover .conn-acts{opacity:1}
+.cact{padding:3px 6px;border-radius:5px;border:none;cursor:pointer;font-size:10px;background:var(--btn2);color:var(--c888);transition:all .15s}
+.cact:hover{background:var(--border);color:var(--text)}
+.cact.del:hover{background:#f72585;color:#fff}
+
+/* ---- Category badge list ---- */
+.cat-item{display:flex;align-items:center;gap:8px;padding:7px 9px;background:var(--bg);border-radius:6px;margin-bottom:5px}
+.cat-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+
+/* ---- Gap highlight ring ---- */
+.gap-ring{fill:none;stroke:#f72585;stroke-width:2;stroke-dasharray:4,3;opacity:.7}
+
+/* ---- Legend ---- */
+#legend{position:absolute;top:14px;right:14px;background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 12px;font-size:11px;z-index:5;min-width:130px}
+#legend.hidden{display:none}
+.leg-item{display:flex;align-items:center;gap:7px;margin-bottom:5px}
+.leg-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.leg-line{height:2px;width:16px;flex-shrink:0}
+
+/* ---- Empty state ---- */
+#empty-state{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;opacity:.4}
+#empty-state h2{font-size:18px;color:var(--accent);margin-bottom:8px}
+#empty-state p{font-size:13px;color:var(--c666)}
+
+/* ---- Scrollbar ---- */
+::-webkit-scrollbar{width:5px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+
+/* ---- Divider ---- */
+hr.div{border:none;border-top:1px solid var(--btn2);margin:12px 0}
+
+/* ---- File indicator ---- */
+#file-name{font-size:11px;color:var(--c555);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* ---- Timeline ---- */
+.tl-author{font-size:10px;fill:var(--c888);pointer-events:none}
+
+/* ---- Studies view ---- */
+#studies-container{position:absolute;inset:0;background:var(--bg);display:none;flex-direction:column;z-index:12}
+#studies-container.active{display:flex}
+#st-bar{background:var(--panel);border-bottom:1px solid var(--border);padding:10px 14px;display:flex;align-items:center;gap:8px;flex-shrink:0;flex-wrap:wrap}
+#st-bar input[type=text]{width:auto;flex:1;min-width:200px}
+#st-body{display:flex;flex:1;overflow:hidden}
+#st-rail{width:220px;background:var(--panel);border-right:1px solid var(--border);overflow-y:auto;padding:12px;flex-shrink:0}
+.st-proj{display:flex;align-items:center;gap:6px;padding:7px 9px;border-radius:6px;cursor:pointer;font-size:12px;color:var(--cccc);margin-bottom:3px;border:1px solid transparent}
+.st-proj:hover{background:var(--surface)}
+.st-proj.active{background:var(--btn2);border-color:#4361ee;color:#fff}
+.st-proj-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.st-proj-count{font-size:10px;color:var(--accent);font-weight:700}
+#st-main{flex:1;overflow-y:auto;padding:16px 18px;min-width:0}
+.st-head{margin-bottom:12px}
+.st-head h2{font-size:18px;color:var(--text);margin-bottom:4px;overflow-wrap:anywhere}
+.st-head .st-sub{font-size:12px;color:var(--c666)}
+.st-section{background:var(--panel);border:1px solid var(--btn2);border-radius:8px;padding:10px 12px;margin-bottom:12px}
+.st-section-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--c555);margin-bottom:6px;display:flex;align-items:center;gap:8px}
+.st-rel{display:inline-flex;align-items:center;gap:6px;background:var(--bg);border:1px solid var(--border);border-radius:14px;padding:3px 10px;margin:3px;font-size:11px;cursor:pointer;color:var(--cccc);max-width:100%}
+.st-rel:hover{border-color:#06d6a0;color:#fff}
+.st-rel .st-rel-kw{color:var(--c555);font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.st-chip{display:inline-block;background:var(--btn2);color:var(--accent);padding:3px 9px;border-radius:12px;font-size:11px;margin:2px;cursor:pointer;border:1px solid transparent;user-select:none}
+.st-chip:hover{border-color:var(--accent)}
+.st-chip.on{background:#4361ee;color:#fff}
+.st-chip .n{opacity:.6;margin-left:4px;font-size:10px}
+.st-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px}
+.st-card{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:8px;min-width:0;overflow:hidden;overflow-wrap:anywhere}
+.st-card:hover{border-color:var(--link)}
+.st-card-top{display:flex;align-items:flex-start;gap:8px}
+.st-title{flex:1;min-width:0;font-size:14px;font-weight:700;line-height:1.35;color:var(--text);text-decoration:none}
+a.st-title:hover{color:var(--accent);text-decoration:underline}
+.st-url{font-size:11px;color:#4cc9f0;text-decoration:none;overflow-wrap:anywhere}
+.st-url:hover{text-decoration:underline}
+.st-meta{font-size:11px;color:var(--c666);line-height:1.5}
+.st-summary{font-size:12.5px;color:var(--cccc);line-height:1.6}
+.st-summary.empty{color:var(--c555);font-style:italic;cursor:pointer}
+.st-also{font-size:10px;color:var(--c555)}
+.st-card details summary{font-size:11px;color:var(--accent);cursor:pointer;user-select:none}
+.st-notes{margin-top:6px;font-size:11.5px;color:var(--c999);line-height:1.6;white-space:pre-wrap;max-height:260px;overflow-y:auto;background:var(--bg);border-radius:6px;padding:8px 10px}
+.st-foot{display:flex;gap:6px;margin-top:auto;padding-top:4px}
+.st-empty{color:var(--c555);font-size:13px;text-align:center;padding:40px 10px}
+</style>
+</head>
+<body>
+
+<!-- Re-link banner (shown when file handle needs permission re-grant) -->
+<div id="relink-banner">
+  <span>⚡ literature.json was previously linked. Click to re-grant access and enable auto-save.</span>
+  <button class="btn btn-secondary btn-sm" id="btn-relink" onclick="sync.relink()" style="flex-shrink:0">Re-link File</button>
+  <button style="background:none;border:none;color:#f77f00;cursor:pointer;font-size:14px;flex-shrink:0" onclick="document.getElementById('relink-banner').style.display='none'">×</button>
+</div>
+
+<!-- Header -->
+<div id="header">
+  <h1>⬡ Literature</h1>
+  <div class="view-tabs">
+    <button class="view-tab active" data-view="studies">📚 Studies</button>
+    <button class="view-tab" data-view="clusters">Clusters</button>
+    <button class="view-tab" data-view="venn">Venn</button>
+    <button class="view-tab" data-view="timeline">Timeline</button>
+  </div>
+  <div class="hdr-actions">
+    <span id="file-name">No file linked</span>
+    <button class="btn btn-secondary btn-sm" id="btn-open">📂 Open</button>
+    <button class="btn btn-secondary btn-sm" id="btn-save">💾 Save</button>
+    <button class="btn btn-secondary btn-sm" id="btn-export">⬇ Export</button>
+    <button class="btn btn-secondary btn-sm" id="theme-btn" onclick="toggleTheme()" aria-label="Toggle dark/light theme"></button>
+  </div>
+</div>
+
+<div id="main">
+  <!-- Sidebar -->
+  <div id="sidebar">
+    <div class="tab-bar">
+      <button class="tab-btn active" data-tab="add">Add</button>
+      <button class="tab-btn" data-tab="connect">Link</button>
+      <button class="tab-btn" data-tab="search">Find</button>
+      <button class="tab-btn" data-tab="stats">Stats</button>
+    </div>
+
+    <!-- Add Tab -->
+    <div class="tab-content active" id="tab-add">
+      <div class="form-group">
+        <label>Node Type</label>
+        <div class="type-grid" id="type-grid">
+          <div class="type-card selected" data-type="Source" style="color:#4361ee">
+            <span class="type-icon">📄</span>Source
+          </div>
+          <div class="type-card" data-type="Concept" style="color:#7209b7">
+            <span class="type-icon">💡</span>Concept
+          </div>
+          <div class="type-card" data-type="Method" style="color:#4cc9f0">
+            <span class="type-icon">🛠</span>Method
+          </div>
+          <div class="type-card" data-type="Data" style="color:#06d6a0">
+            <span class="type-icon">🗃</span>Data
+          </div>
+          <div class="type-card" data-type="Gap" style="color:#f72585">
+            <span class="type-icon">🔍</span>Gap
+          </div>
+          <div class="type-card" data-type="Application" style="color:#f77f00">
+            <span class="type-icon">⚙</span>App
+          </div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Title / Name</label>
+        <input type="text" id="node-label" placeholder="e.g. paper / article / book title" />
+      </div>
+      <div class="form-group">
+        <label>Study / Project</label>
+        <input type="text" id="node-projects" list="project-list" placeholder="e.g. physio patterns (comma-separate for several)" />
+      </div>
+      <div class="form-group">
+        <label>URL</label>
+        <input type="text" id="node-url" placeholder="https://…" />
+      </div>
+      <div id="paper-fields">
+        <div class="form-group">
+          <label>Authors</label>
+          <input type="text" id="node-authors" placeholder="e.g. Smith et al." />
+        </div>
+        <div class="form-group" style="display:flex;gap:8px">
+          <div style="flex:1">
+            <label>Year</label>
+            <input type="number" id="node-year" placeholder="2024" min="1900" max="2030" />
+          </div>
+          <div style="flex:1">
+            <label>Venue</label>
+            <input type="text" id="node-venue" placeholder="Journal / venue" />
+          </div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Summary (2–4 sentences)</label>
+        <textarea id="node-summary" style="min-height:56px" placeholder="What it found / why it matters for this study"></textarea>
+      </div>
+      <div class="form-group">
+        <label>Notes / Abstract</label>
+        <textarea id="node-desc" placeholder="Key contributions, findings, or description..."></textarea>
+      </div>
+      <div class="form-group">
+        <label>Keywords / Tags</label>
+        <input type="text" id="node-tags" placeholder="e.g. heart rate, sleep, wearables (saved lowercase)" />
+        <datalist id="project-list"></datalist>
+      </div>
+      <button class="btn btn-primary btn-full" id="btn-add-node">+ Add Node</button>
+    </div>
+
+    <!-- Connect Tab -->
+    <div class="tab-content" id="tab-connect">
+      <div class="form-group">
+        <label>From</label>
+        <select id="edge-src"><option value="">Select source...</option></select>
+      </div>
+      <div class="form-group">
+        <label>Relationship</label>
+        <select id="edge-rel-preset">
+          <option value="">— preset —</option>
+          <option>uses</option><option>extends</option><option>cites</option>
+          <option>addresses</option><option>leaves_open</option><option>trained_on</option>
+          <option>compared_to</option><option>outperforms</option><option>overlaps</option>
+        </select>
+        <input type="text" id="edge-rel" placeholder="Or type custom..." style="margin-top:6px" />
+      </div>
+      <div class="form-group">
+        <label>To</label>
+        <select id="edge-tgt"><option value="">Select target...</option></select>
+      </div>
+      <button class="btn btn-primary btn-full" id="btn-add-edge">+ Add Connection</button>
+      <hr class="div">
+      <p style="font-size:11px;color:var(--c555);line-height:1.6">Tip: right-click a node in Clusters → Connect from here.</p>
+    </div>
+
+    <!-- Search Tab -->
+    <div class="tab-content" id="tab-search">
+      <div class="form-group">
+        <input type="text" id="search-q" placeholder="Search by name, tag, keyword..." />
+      </div>
+      <div class="form-group">
+        <select id="search-type"><option value="">All types</option></select>
+      </div>
+      <div class="form-group">
+        <select id="search-proj"><option value="">All projects</option></select>
+      </div>
+      <div class="form-group">
+        <select id="search-tag"><option value="">All tags</option></select>
+      </div>
+      <div id="search-results" style="margin-top:4px"></div>
+    </div>
+
+    <!-- Stats Tab -->
+    <div class="tab-content" id="tab-stats">
+      <div class="stat-row">
+        <div class="stat-card"><div class="stat-val" id="s-nodes">0</div><div class="stat-lbl">Nodes</div></div>
+        <div class="stat-card"><div class="stat-val" id="s-links">0</div><div class="stat-lbl">Links</div></div>
+      </div>
+      <div class="stat-row">
+        <div class="stat-card"><div class="stat-val" id="s-papers">0</div><div class="stat-lbl">Sources</div></div>
+        <div class="stat-card"><div class="stat-val" id="s-gaps">0</div><div class="stat-lbl">Gaps</div></div>
+      </div>
+      <hr class="div">
+      <label>By Type</label>
+      <div id="stats-types" style="margin-top:8px"></div>
+      <hr class="div">
+      <label>Most Connected</label>
+      <div id="stats-top" style="margin-top:8px"></div>
+      <hr class="div">
+      <label>All Projects</label>
+      <div id="stats-projects" style="margin-top:8px;line-height:2"></div>
+      <hr class="div">
+      <label>All Tags</label>
+      <div id="stats-tags" style="margin-top:8px;line-height:2"></div>
+    </div>
+  </div>
+
+  <!-- Graph Container -->
+  <div id="graph-container">
+    <svg id="graph-svg"></svg>
+
+    <!-- Empty state -->
+    <div id="empty-state">
+      <h2>Your graph is empty</h2>
+      <p>Use the sidebar to add papers, concepts, and research gaps</p>
+    </div>
+
+    <!-- Legend -->
+    <div id="legend">
+      <div style="font-size:10px;font-weight:700;color:var(--c555);margin-bottom:6px;letter-spacing:.5px">LEGEND</div>
+      <div class="leg-item"><div class="leg-dot" style="background:#4361ee"></div>Source</div>
+      <div class="leg-item"><div class="leg-dot" style="background:#7209b7"></div>Concept</div>
+      <div class="leg-item"><div class="leg-dot" style="background:#4cc9f0"></div>Method</div>
+      <div class="leg-item"><div class="leg-dot" style="background:#06d6a0"></div>Data</div>
+      <div class="leg-item"><div class="leg-dot" style="background:#f72585"></div>Gap</div>
+      <div class="leg-item"><div class="leg-dot" style="background:#f77f00"></div>App</div>
+      <hr class="div" style="margin:6px 0">
+      <div class="leg-item"><div class="leg-line" style="background:var(--link)"></div>link</div>
+    </div>
+
+    <!-- Venn view overlay -->
+    <div id="venn-container">
+      <svg id="venn-svg"></svg>
+      <div id="venn-controls">
+        <div class="form-group">
+          <label>Topic A</label>
+          <select id="venn-a"><option value="">Pick tag/category...</option></select>
+        </div>
+        <div class="form-group">
+          <label>Topic B</label>
+          <select id="venn-b"><option value="">Pick tag/category...</option></select>
+        </div>
+        <div class="form-group">
+          <label>Topic C (optional)</label>
+          <select id="venn-c"><option value="">None</option></select>
+        </div>
+        <button class="btn btn-primary btn-full" id="btn-venn">Draw Venn</button>
+      </div>
+    </div>
+
+    <!-- Timeline overlay -->
+    <div id="timeline-container">
+      <svg id="timeline-svg"></svg>
+    </div>
+
+    <!-- Studies view -->
+    <div id="studies-container">
+      <div id="st-bar">
+        <input type="text" id="st-q" placeholder="Search a study / project…  e.g. physio patterns" />
+        <input type="text" id="st-filter" placeholder="Filter within results…" style="max-width:240px" />
+        <button class="btn btn-secondary btn-sm" id="st-copy">⧉ Copy as Markdown</button>
+      </div>
+      <div id="st-body">
+        <div id="st-rail"></div>
+        <div id="st-main"></div>
+      </div>
+    </div>
+
+    <!-- Zoom controls -->
+    <div id="zoom-controls">
+      <button class="btn btn-secondary btn-sm" id="z-in">+</button>
+      <button class="btn btn-secondary btn-sm" id="z-fit">⊡</button>
+      <button class="btn btn-secondary btn-sm" id="z-out">−</button>
+    </div>
+
+    <!-- Detail panel -->
+    <div id="detail-panel">
+      <div class="dp-header">
+        <div class="dp-title" id="dp-title"></div>
+        <span class="dp-badge" id="dp-badge"></span>
+      </div>
+      <div class="dp-meta" id="dp-meta"></div>
+      <div id="dp-projects" style="margin-bottom:8px"></div>
+      <a class="dp-url" id="dp-url" target="_blank" rel="noopener"></a>
+      <div class="dp-summary" id="dp-summary"></div>
+      <div class="dp-desc" id="dp-desc"></div>
+      <div id="dp-tags" style="margin-bottom:10px"></div>
+      <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap">
+        <button class="btn btn-secondary btn-sm" id="dp-edit">Edit</button>
+        <button class="btn btn-secondary btn-sm" id="dp-pin">Pin</button>
+        <button class="btn btn-danger btn-sm" id="dp-delete">Delete</button>
+        <button class="btn btn-secondary btn-sm" style="margin-left:auto" id="dp-close">×</button>
+      </div>
+      <div id="dp-connections"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Status bar -->
+<div id="status-bar">
+  <span><span class="save-dot" id="save-dot"></span><span id="status-txt">Ready · Ctrl+S to save</span></span>
+  <span><span id="status-counts"></span> · <button class="link-btn" onclick="sync.openBackups()" title="Restore an automatic backup">↶ Backups</button></span>
+</div>
+
+<!-- Context menu -->
+<div id="ctx-menu">
+  <div class="ctx-item" id="ctx-edit">✏️  Edit</div>
+  <div class="ctx-item" id="ctx-connect">🔗  Connect from here</div>
+  <div class="ctx-item" id="ctx-focus">🔍  Focus &amp; highlight</div>
+  <div class="ctx-item" id="ctx-pin">📌  Toggle pin</div>
+  <div class="ctx-item danger" id="ctx-delete">🗑  Delete</div>
+</div>
+
+<!-- Link edit popup (inline, positioned near clicked link) -->
+<div id="link-popup">
+  <div class="lp-from-to" id="lp-from-to"></div>
+  <div class="form-group" style="margin-bottom:8px">
+    <label>Relationship label</label>
+    <input type="text" id="lp-label" placeholder="e.g. uses, cites, extends..." />
+  </div>
+  <div style="display:flex;gap:6px">
+    <button class="btn btn-primary btn-sm" id="lp-save">Save</button>
+    <button class="btn btn-danger btn-sm" id="lp-delete">Delete</button>
+    <button class="btn btn-secondary btn-sm" id="lp-cancel" style="margin-left:auto">×</button>
+  </div>
+</div>
+
+<!-- Edit modal -->
+<div class="modal-bg" id="edit-modal">
+  <div class="modal-box">
+    <h3>Edit Node</h3>
+    <div class="form-group"><label>Label</label><input type="text" id="em-label" /></div>
+    <div class="form-group"><label>Type</label><select id="em-type">
+      <option>Source</option><option>Concept</option><option>Method</option>
+      <option>Data</option><option>Gap</option><option>Application</option>
+    </select></div>
+    <div class="form-group"><label>Study / Project</label><input type="text" id="em-projects" list="project-list" placeholder="comma-separated" /></div>
+    <div class="form-group"><label>URL</label><input type="text" id="em-url" /></div>
+    <div class="form-group"><label>Authors</label><input type="text" id="em-authors" /></div>
+    <div class="form-group" style="display:flex;gap:8px">
+      <div style="flex:1"><label>Year</label><input type="number" id="em-year" /></div>
+      <div style="flex:1"><label>Venue</label><input type="text" id="em-venue" /></div>
+    </div>
+    <div class="form-group"><label>Summary</label><textarea id="em-summary" style="min-height:56px"></textarea></div>
+    <div class="form-group"><label>Notes</label><textarea id="em-desc"></textarea></div>
+    <div class="form-group"><label>Tags</label><input type="text" id="em-tags" /></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn btn-secondary" id="em-cancel">Cancel</button>
+      <button class="btn btn-primary" id="em-save">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<script>
+// ============================================================
+// DATA & CONSTANTS
+// ============================================================
+const TYPE_COLORS = {
+  Source:'#4361ee', Concept:'#7209b7', Method:'#4cc9f0',
+  Data:'#06d6a0', Gap:'#f72585', Application:'#f77f00'
+};
+const TYPE_ICONS = {
+  Source:'📄', Concept:'💡', Method:'🛠', Data:'🗃', Gap:'🔍', Application:'⚙'
+};
+// Older (ML-specific) type names → generic ones
+const LEGACY_TYPES = { Paper:'Source', Model:'Method', Dataset:'Data' };
+
+let G = { nodes:[], links:[], categories:[], metadata:{} };
+let selectedType = 'Source';
+let ctxNode = null;
+let editNodeId = null;
+let currentView = 'studies';
+
+// D3 objects
+let sim = null;
+let svgZoom = null;
+let gMain = null;
+let d3Links = [];
+
+// ============================================================
+// INIT & PERSISTENCE (browser copy + linked literature.json — see createFileSync in common.js)
+// ============================================================
+const sync = createFileSync({
+  fileName:'literature.json', lsKey:'ml-kg', idbName:'ml-kg-handles', backupKey:'ml-kg-backups',
+  itemsKey:'nodes', itemsLabel:'nodes',
+  snapshot: () => { normalizeLinks(); return JSON.parse(JSON.stringify(G)); },
+  apply: data => { setData(data); renderGraph(); updateAll(); },
+  meta: () => G.metadata,
+  linkKey: l => `${sid(l)}|${tid(l)}|${l.label||''}`,
+});
+
+function init() {
+  const studyLink = location.hash.match(/^#study=(.*)$/); // read before renderStudies() rewrites the hash
+  const local = sync.loadLocal();
+  if (local) setData(local);
+  setupGraph();
+  setupUI();
+  renderGraph();
+  updateAll();
+  setStatus('Ready · Ctrl/Cmd+S to save', false);
+  sync.start();
+  // Studies is the default (first) view; a #study= link opens a specific one
+  if (studyLink) openStudy(decodeURIComponent(studyLink[1]));
+  else document.querySelector('[data-view="studies"]').click();
+}
+
+function migrateNode(n) {
+  if (LEGACY_TYPES[n.type]) n.type = LEGACY_TYPES[n.type];
+  n.tags = uniqTags(Array.isArray(n.tags) ? n.tags : []);
+  if (!Array.isArray(n.projects)) n.projects = n.project ? [n.project] : [];
+  delete n.project;
+  if (n.url == null) n.url = '';
+  if (n.summary == null) n.summary = '';
+  return n;
+}
+
+// Replace the in-memory graph (from the browser copy, a file or a backup)
+function setData(data) {
+  G.nodes = (data.nodes || []).map(migrateNode);
+  G.links = data.links || [];
+  G.categories = data.categories || [];
+  G.metadata = {...(data.metadata || {}), project:'Literature'};
+  normalizeLinks();
+}
+
+// ============================================================
+// GRAPH SETUP
+// ============================================================
+function setupGraph() {
+  const svg = d3.select('#graph-svg');
+  const c = document.getElementById('graph-container');
+
+  svg.append('defs').html(`
+    <marker id="arrow" viewBox="0 -5 10 10" refX="22" refY="0" markerWidth="5" markerHeight="5" orient="auto">
+      <path d="M0,-5L10,0L0,5" style="fill:var(--link)"/>
+    </marker>
+    <marker id="arrow-h" viewBox="0 -5 10 10" refX="22" refY="0" markerWidth="5" markerHeight="5" orient="auto">
+      <path d="M0,-5L10,0L0,5" fill="#818cf8"/>
+    </marker>
+  `);
+
+  svgZoom = d3.zoom().scaleExtent([.05, 5]).on('zoom', e => gMain.attr('transform', e.transform));
+  svg.call(svgZoom);
+
+  svg.on('click', e => {
+    if (e.target === svg.node()) { closeDetail(); clearHL(); }
+    hideCtx();
+  });
+  svg.on('contextmenu', e => e.preventDefault());
+
+  gMain = svg.append('g').attr('id','gMain');
+  gMain.append('g').attr('id','g-hulls');
+  gMain.append('g').attr('id','g-links');
+  gMain.append('g').attr('id','g-link-labels');
+  gMain.append('g').attr('id','g-link-hits');
+  gMain.append('g').attr('id','g-nodes');
+
+  sim = d3.forceSimulation()
+    .force('link', d3.forceLink().id(d=>d.id).distance(130).strength(.45))
+    .force('charge', d3.forceManyBody().strength(-320))
+    .force('center', d3.forceCenter(c.clientWidth/2, c.clientHeight/2))
+    .force('collide', d3.forceCollide().radius(d=>nodeR(d)+18).strength(.7))
+    .on('tick', ticked);
+}
+
+function nodeR(d) {
+  const deg = d3Links.filter(l=>{
+    const s=l.source?.id||l.source, t=l.target?.id||l.target;
+    return s===d.id||t===d.id;
+  }).length;
+  return Math.max(16, Math.min(36, 16 + deg*2.5));
+}
+
+function typeColor(t) { return TYPE_COLORS[t] || '#818cf8'; }
+
+function ticked() {
+  d3.selectAll('.link-line')
+    .attr('x1',d=>d.source.x).attr('y1',d=>d.source.y)
+    .attr('x2',d=>d.target.x).attr('y2',d=>d.target.y);
+  d3.selectAll('.link-hit')
+    .attr('x1',d=>d.source.x).attr('y1',d=>d.source.y)
+    .attr('x2',d=>d.target.x).attr('y2',d=>d.target.y);
+  d3.selectAll('.link-label')
+    .attr('x',d=>(d.source.x+d.target.x)/2)
+    .attr('y',d=>(d.source.y+d.target.y)/2);
+  d3.selectAll('.node-g').attr('transform',d=>`translate(${d.x},${d.y})`);
+
+  if (currentView === 'clusters') renderHulls();
+}
+
+// ============================================================
+// RENDER
+// ============================================================
+function renderGraph() {
+  const empty = G.nodes.length === 0;
+  document.getElementById('empty-state').style.display = empty ? 'flex' : 'none';
+
+  normalizeLinks();
+  d3Links = G.links.map(l=>({...l, source:sid(l), target:tid(l)}));
+
+  // Links
+  d3.select('#g-links').selectAll('.link-line')
+    .data(d3Links, d=>d.id)
+    .join(
+      e=>e.append('line').attr('class','link-line')
+        .style('stroke','var(--link)').attr('stroke-opacity',.5).attr('stroke-width',1.5)
+        .attr('marker-end','url(#arrow)').style('opacity',0).call(x=>x.transition().duration(400).style('opacity',1)),
+      u=>u,
+      x=>x.transition().duration(200).style('opacity',0).remove()
+    );
+
+  // Invisible wide hit areas for link clicking
+  d3.select('#g-link-hits').selectAll('.link-hit')
+    .data(d3Links, d=>d.id)
+    .join(
+      e=>e.append('line').attr('class','link-hit')
+        .on('click',(ev,d)=>{ ev.stopPropagation(); showLinkPopup(ev, d); }),
+      u=>u.on('click',(ev,d)=>{ ev.stopPropagation(); showLinkPopup(ev, d); }),
+      x=>x.remove()
+    );
+
+  // Link labels
+  d3.select('#g-link-labels').selectAll('.link-label')
+    .data(d3Links.filter(l=>l.label), d=>d.id)
+    .join(
+      e=>e.append('text').attr('class','link-label').attr('font-size','9px').style('fill','var(--link)').attr('text-anchor','middle').attr('dominant-baseline','central'),
+      u=>u, x=>x.remove()
+    ).text(d=>d.label);
+
+  // Nodes
+  const node = d3.select('#g-nodes').selectAll('.node-g')
+    .data(G.nodes, d=>d.id)
+    .join(
+      e=>{
+        const g = e.append('g').attr('class','node-g').attr('transform',d=>`translate(${d.x||0},${d.y||0})`).call(dragBeh());
+
+        // Gap dashed ring
+        g.filter(d=>d.type==='Gap').append('circle').attr('class','gap-ring').attr('r',d=>nodeR(d)+5);
+
+        g.append('circle').attr('class','node-circle')
+          .attr('r',0).attr('fill',d=>typeColor(d.type)).attr('fill-opacity',.85)
+          .attr('stroke',d=>typeColor(d.type)).attr('stroke-width',2)
+          .call(c=>c.transition().duration(500).attr('r',d=>nodeR(d)));
+
+        g.append('text').attr('class','node-label').attr('font-size','11px').style('fill','var(--text)')
+          .attr('text-anchor','middle').attr('dominant-baseline','central').attr('pointer-events','none')
+          .text(d=>d.label.length>13?d.label.slice(0,11)+'…':d.label).style('opacity',0)
+          .call(t=>t.transition().delay(200).duration(300).style('opacity',1));
+
+        g.on('click',(ev,d)=>{ ev.stopPropagation(); selectNode(d); hideCtx(); })
+          .on('contextmenu',(ev,d)=>{ ev.preventDefault(); ev.stopPropagation(); showCtx(ev.pageX,ev.pageY,d); })
+          .on('dblclick',(ev,d)=>{ ev.stopPropagation(); openEditModal(d.id); });
+        return g;
+      },
+      u=>{
+        u.select('.node-circle').transition().duration(300).attr('r',d=>nodeR(d)).attr('fill',d=>typeColor(d.type)).attr('stroke',d=>typeColor(d.type));
+        u.select('.node-label').text(d=>d.label.length>13?d.label.slice(0,11)+'…':d.label);
+        u.filter(d=>d.type==='Gap').select('.gap-ring').attr('r',d=>nodeR(d)+5);
+        return u;
+      },
+      x=>x.transition().duration(200).style('opacity',0).remove()
+    );
+
+  sim.nodes(G.nodes);
+  sim.force('link').links(d3Links);
+  sim.alpha(.3).restart();
+}
+
+function renderHulls() {
+  const byType = d3.group(G.nodes.filter(n=>n.x!=null), n=>n.type);
+  const hulls = [];
+  byType.forEach((nodes, type)=>{
+    if (nodes.length < 3) return;
+    const pts = nodes.map(n=>[n.x, n.y]);
+    const hull = d3.polygonHull(pts);
+    if (hull) hulls.push({type, hull, color: typeColor(type)});
+  });
+  d3.select('#g-hulls').selectAll('.hull')
+    .data(hulls, d=>d.type)
+    .join('path').attr('class','hull')
+    .attr('fill',d=>d.color).attr('stroke',d=>d.color)
+    .attr('d',d=>{ const p = d.hull.map((pt,i)=>`${i?'L':'M'}${pt[0]},${pt[1]}`).join(' ')+'Z'; return p; });
+}
+
+function dragBeh() {
+  return d3.drag()
+    .on('start',(e,d)=>{ if(!e.active) sim.alphaTarget(.3).restart(); d.fx=d.x; d.fy=d.y; })
+    .on('drag',(e,d)=>{ d.fx=e.x; d.fy=e.y; })
+    .on('end',(e,d)=>{ if(!e.active) sim.alphaTarget(0); d.fx=e.x; d.fy=e.y; const n=G.nodes.find(n=>n.id===d.id); if(n){n.x=e.x;n.y=e.y;n.fx=e.x;n.fy=e.y;} sync.changed(); });
+}
+
+// ============================================================
+// NODE OPERATIONS
+// ============================================================
+function addNode() {
+  const label = document.getElementById('node-label').value.trim();
+  if (!label) { toast('Enter a name first'); return; }
+
+  const c = document.getElementById('graph-container');
+  const n = {
+    id: uid(),
+    label,
+    type: selectedType,
+    projects: splitList(document.getElementById('node-projects').value),
+    url: document.getElementById('node-url').value.trim(),
+    summary: document.getElementById('node-summary').value.trim(),
+    authors: document.getElementById('node-authors').value.trim(),
+    year: parseInt(document.getElementById('node-year').value)||null,
+    venue: document.getElementById('node-venue').value.trim(),
+    description: document.getElementById('node-desc').value.trim(),
+    tags: uniqTags(splitList(document.getElementById('node-tags').value)),
+    created: new Date().toISOString(),
+    updated: new Date().toISOString(),
+    x: c.clientWidth/2 + (Math.random()-.5)*180,
+    y: c.clientHeight/2 + (Math.random()-.5)*180
+  };
+
+  G.nodes.push(n);
+
+  // Clear form
+  ['node-label','node-url','node-summary','node-authors','node-desc','node-tags','node-venue'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('node-year').value='';
+
+  renderGraph();
+  updateAll();
+  sync.changed();
+  toast(`Added: ${label}`);
+}
+
+async function deleteNode(id) {
+  const n = G.nodes.find(n=>n.id===id); if (!n) return;
+  const k = G.links.filter(l=>sid(l)===id || tid(l)===id).length;
+  if (!await confirmDelete(`Delete “${n.label}”?`, k ? `Its ${k} connection${k===1?'':'s'} will be deleted too.` : '')) return;
+  G.nodes = G.nodes.filter(n=>n.id!==id);
+  G.links = G.links.filter(l=>sid(l)!==id && tid(l)!==id);
+  if (selectedId === id) closeDetail();
+  renderGraph(); updateAll(); sync.changed();
+  toast('Node deleted');
+}
+
+function addEdge() {
+  const src = document.getElementById('edge-src').value;
+  const tgt = document.getElementById('edge-tgt').value;
+  const rel = document.getElementById('edge-rel').value.trim() || document.getElementById('edge-rel-preset').value || '';
+  if (!src||!tgt) { toast('Select both nodes'); return; }
+  if (src===tgt) { toast('Cannot link to itself'); return; }
+  if (G.links.some(l=>sid(l)===src&&tid(l)===tgt)) { toast('Connection exists'); return; }
+  G.links.push({ id:uid(), source:src, target:tgt, label:rel, created:new Date().toISOString() });
+  document.getElementById('edge-rel').value='';
+  document.getElementById('edge-rel-preset').value='';
+  renderGraph(); updateAll(); sync.changed();
+  toast('Connection added');
+}
+
+async function deleteLink(id) {
+  const l = G.links.find(l=>l.id===id); if (!l) return;
+  const name = nid => G.nodes.find(n=>n.id===nid)?.label || '?';
+  if (!await confirmDelete('Delete this connection?', `${name(sid(l))} → ${name(tid(l))}${l.label ? ` (${l.label})` : ''}`)) return;
+  G.links = G.links.filter(l=>l.id!==id);
+  closeLinkPopup();
+  if (selectedId) openDetail(selectedId);
+  renderGraph(); updateAll(); sync.changed();
+  toast('Connection deleted');
+}
+
+// ============================================================
+// LINK POPUP
+// ============================================================
+let activeLinkId = null;
+
+function showLinkPopup(ev, linkData) {
+  activeLinkId = linkData.id;
+  const link = G.links.find(l=>l.id===linkData.id);
+  if (!link) return;
+
+  const srcNode = G.nodes.find(n=>n.id===sid(link));
+  const tgtNode = G.nodes.find(n=>n.id===tid(link));
+  if (!srcNode||!tgtNode) return;
+
+  const popup = document.getElementById('link-popup');
+  document.getElementById('lp-from-to').innerHTML =
+    `<strong>${esc(srcNode.label)}</strong> → <strong>${esc(tgtNode.label)}</strong>`;
+  document.getElementById('lp-label').value = link.label || '';
+
+  // Position near cursor, keep within viewport
+  const gc = document.getElementById('graph-container').getBoundingClientRect();
+  let left = ev.clientX - gc.left + 12;
+  let top  = ev.clientY - gc.top  + 12;
+  if (left + 240 > gc.width)  left = ev.clientX - gc.left - 252;
+  if (top  + 150 > gc.height) top  = ev.clientY - gc.top  - 152;
+
+  popup.style.left = left + 'px';
+  popup.style.top  = top  + 'px';
+  popup.classList.add('open');
+
+  setTimeout(()=>document.getElementById('lp-label').focus(), 50);
+}
+
+function closeLinkPopup() {
+  document.getElementById('link-popup').classList.remove('open');
+  activeLinkId = null;
+}
+
+function saveLinkEdit() {
+  if (!activeLinkId) return;
+  const link = G.links.find(l=>l.id===activeLinkId);
+  if (!link) return;
+  link.label = document.getElementById('lp-label').value.trim();
+  closeLinkPopup();
+  if (selectedId) openDetail(selectedId);
+  renderGraph(); sync.changed();
+  toast('Connection updated');
+}
+
+// ============================================================
+// SELECTION & DETAIL PANEL
+// ============================================================
+let selectedId = null;
+
+function selectNode(d) {
+  selectedId = d.id;
+  hlConnections(d.id);
+  openDetail(d.id);
+}
+
+function openDetail(id) {
+  const n = G.nodes.find(n=>n.id===id);
+  if (!n) return;
+  const c = typeColor(n.type);
+  document.getElementById('dp-title').textContent = n.label;
+  const badge = document.getElementById('dp-badge');
+  badge.textContent = `${TYPE_ICONS[n.type]||''} ${n.type}`;
+  badge.style.background = c+'22'; badge.style.color = c;
+
+  const meta = [n.authors,n.year,n.venue].filter(Boolean).join(' · ');
+  document.getElementById('dp-meta').textContent = meta;
+  document.getElementById('dp-projects').innerHTML = (n.projects||[]).map(p=>`<span class="tag proj" title="Open study" onclick="openStudy('${escAttr(p)}')">📚 ${esc(p)}</span>`).join('');
+  const urlEl = document.getElementById('dp-url');
+  urlEl.textContent = n.url || ''; urlEl.href = safeUrl(n.url); urlEl.style.display = n.url ? 'block' : 'none';
+  const sumEl = document.getElementById('dp-summary');
+  sumEl.textContent = n.summary || ''; sumEl.style.display = n.summary ? 'block' : 'none';
+  document.getElementById('dp-desc').textContent = n.description || '';
+  document.getElementById('dp-tags').innerHTML = uniqTags(n.tags).map(t=>`<span class="tag ${n.type==='Gap'?'gap':''}">${esc(t)}</span>`).join('');
+
+  const conns = G.links.filter(l=>sid(l)===id||tid(l)===id);
+  const dp = document.getElementById('dp-connections');
+  if (!conns.length) {
+    dp.innerHTML = '<div style="color:var(--c555);font-size:11px;margin-top:4px">No connections yet</div>';
+  } else {
+    dp.innerHTML = `<div class="dp-section-title">Connections (${conns.length})</div>` +
+      conns.map(l=>{
+        const isS = sid(l)===id;
+        const otherId = isS?tid(l):sid(l);
+        const other = G.nodes.find(n=>n.id===otherId);
+        if (!other) return '';
+        return `<div class="conn-item">
+          <div class="conn-dot" style="background:${typeColor(other.type)}"></div>
+          <div class="conn-nav" onclick="focusNode('${escAttr(other.id)}')">
+            <div class="conn-name">${esc(other.label)}</div>
+            <div class="conn-rel" style="color:var(--c555);font-size:10px">${isS?'→':'←'} ${l.label ? esc(l.label) : '<span style="color:var(--link)">no label</span>'}</div>
+          </div>
+          <div class="conn-acts">
+            <button class="cact" onclick="event.stopPropagation();editLinkById('${escAttr(l.id)}')" title="Edit">✏</button>
+            <button class="cact del" onclick="event.stopPropagation();deleteLink('${escAttr(l.id)}')" title="Delete">✕</button>
+          </div>
+        </div>`;
+      }).join('')
+  }
+
+  document.getElementById('dp-edit').onclick = ()=>openEditModal(id);
+  document.getElementById('dp-delete').onclick = ()=>deleteNode(id);
+  document.getElementById('dp-pin').onclick = ()=>{ const n=G.nodes.find(n=>n.id===id); if(n){if(n.fx!=null){n.fx=null;n.fy=null;toast('Unpinned');}else{n.fx=n.x;n.fy=n.y;toast('Pinned');} sim.alpha(.1).restart();} };
+
+  document.getElementById('detail-panel').classList.add('open');
+}
+
+function closeDetail() {
+  document.getElementById('detail-panel').classList.remove('open');
+  selectedId = null;
+}
+
+function editLinkById(linkId) {
+  const link = G.links.find(l=>l.id===linkId);
+  if (!link) return;
+  activeLinkId = linkId;
+  const srcNode = G.nodes.find(n=>n.id===sid(link));
+  const tgtNode = G.nodes.find(n=>n.id===tid(link));
+  document.getElementById('lp-from-to').innerHTML =
+    `<strong>${esc(srcNode?.label||'?')}</strong> → <strong>${esc(tgtNode?.label||'?')}</strong>`;
+  document.getElementById('lp-label').value = link.label || '';
+
+  // Position popup in center of detail panel
+  const dp = document.getElementById('detail-panel');
+  const gc = document.getElementById('graph-container').getBoundingClientRect();
+  const popup = document.getElementById('link-popup');
+  popup.style.left = (gc.width - dp.clientWidth - 240) / 2 + 'px';
+  popup.style.top  = '120px';
+  popup.classList.add('open');
+  setTimeout(()=>document.getElementById('lp-label').focus(), 50);
+}
+
+function focusNode(id) {
+  const n = G.nodes.find(n=>n.id===id);
+  if (!n||n.x==null) return;
+  if (currentView !== 'clusters') document.querySelector('[data-view="clusters"]').click();
+  selectNode(n);
+  const svg = d3.select('#graph-svg');
+  const c = document.getElementById('graph-container');
+  const cx=c.clientWidth/2, cy=c.clientHeight/2;
+  svg.transition().duration(700).call(svgZoom.transform, d3.zoomIdentity.translate(cx-n.x,cy-n.y).scale(1));
+}
+
+// ============================================================
+// HIGHLIGHTS
+// ============================================================
+function hlConnections(id) {
+  clearHL();
+  const related = new Set([id]);
+  G.links.forEach(l=>{ if(sid(l)===id)related.add(tid(l)); if(tid(l)===id)related.add(sid(l)); });
+  d3.selectAll('.node-circle').style('opacity',d=>related.has(d.id)?1:.12);
+  d3.selectAll('.node-label').style('opacity',d=>related.has(d.id)?1:.05);
+  d3.selectAll('.link-line').style('opacity',d=>{
+    const s=d.source?.id||d.source, t=d.target?.id||d.target;
+    return (s===id||t===id)?.9:.05;
+  }).style('stroke',d=>{
+    const s=d.source?.id||d.source, t=d.target?.id||d.target;
+    return (s===id||t===id)?'var(--accent)':'var(--link)';
+  }).attr('marker-end',d=>{
+    const s=d.source?.id||d.source, t=d.target?.id||d.target;
+    return (s===id||t===id)?'url(#arrow-h)':'url(#arrow)';
+  });
+}
+
+function clearHL() {
+  d3.selectAll('.node-circle,.node-label').style('opacity',1);
+  d3.selectAll('.link-line').style('opacity',.5).style('stroke','var(--link)').attr('marker-end','url(#arrow)');
+}
+
+// ============================================================
+// CONTEXT MENU
+// ============================================================
+function showCtx(x,y,d) {
+  ctxNode=d;
+  const m=document.getElementById('ctx-menu');
+  m.style.display='block'; m.style.left=x+'px'; m.style.top=y+'px';
+}
+function hideCtx() {
+  document.getElementById('ctx-menu').style.display='none'; ctxNode=null;
+}
+
+// ============================================================
+// EDIT MODAL
+// ============================================================
+function openEditModal(id) {
+  const n = G.nodes.find(n=>n.id===id);
+  if (!n) return;
+  editNodeId = id;
+  document.getElementById('em-label').value = n.label;
+  document.getElementById('em-type').value = n.type;
+  document.getElementById('em-projects').value = (n.projects||[]).join(', ');
+  document.getElementById('em-url').value = n.url||'';
+  document.getElementById('em-summary').value = n.summary||'';
+  document.getElementById('em-authors').value = n.authors||'';
+  document.getElementById('em-year').value = n.year||'';
+  document.getElementById('em-venue').value = n.venue||'';
+  document.getElementById('em-desc').value = n.description||'';
+  document.getElementById('em-tags').value = (n.tags||[]).join(', ');
+  document.getElementById('edit-modal').classList.add('open');
+}
+
+function closeEditModal() { document.getElementById('edit-modal').classList.remove('open'); editNodeId=null; }
+
+function saveEdit() {
+  const n = G.nodes.find(n=>n.id===editNodeId);
+  if (!n) return;
+  n.label = document.getElementById('em-label').value.trim()||n.label;
+  n.type = document.getElementById('em-type').value;
+  n.projects = splitList(document.getElementById('em-projects').value);
+  n.url = document.getElementById('em-url').value.trim();
+  n.summary = document.getElementById('em-summary').value.trim();
+  n.authors = document.getElementById('em-authors').value.trim();
+  n.year = parseInt(document.getElementById('em-year').value)||null;
+  n.venue = document.getElementById('em-venue').value.trim();
+  n.description = document.getElementById('em-desc').value.trim();
+  n.tags = uniqTags(splitList(document.getElementById('em-tags').value));
+  n.updated = new Date().toISOString();
+  const id = editNodeId;
+  closeEditModal();
+  renderGraph(); if (selectedId===id) openDetail(id); updateAll(); sync.changed();
+  if (currentView==='studies') renderStudies();
+  toast('Node updated');
+}
+
+// ============================================================
+// VENN DIAGRAM
+// ============================================================
+function buildVennOptions() {
+  const tags = allTags();
+  const allTypes = Object.keys(TYPE_COLORS).filter(t=>G.nodes.some(n=>n.type===t));
+  const options = [
+    ...allTypes.map(t=>`<option value="type:${t}">${TYPE_ICONS[t]} ${t}</option>`),
+    ...allProjects().map(p=>`<option value="project:${esc(p)}">📚 ${esc(p)}</option>`),
+    ...tags.map(t=>`<option value="tag:${esc(tkey(t))}">#${esc(t)}</option>`)
+  ].join('');
+  ['venn-a','venn-b','venn-c'].forEach((id,i)=>{
+    const el = document.getElementById(id);
+    const cur = el.value;
+    el.innerHTML = (i===2?'<option value="">None</option>':'<option value="">Pick...</option>') + options;
+    if(cur) el.value=cur;
+  });
+}
+
+function getNodesForTopic(val) {
+  if (!val) return new Set();
+  if (val.startsWith('type:')) { const t=val.slice(5); return new Set(G.nodes.filter(n=>n.type===t).map(n=>n.id)); }
+  if (val.startsWith('project:')) { const p=val.slice(8); return new Set(G.nodes.filter(n=>(n.projects||[]).includes(p)).map(n=>n.id)); }
+  if (val.startsWith('tag:')) { const t=val.slice(4); return new Set(G.nodes.filter(n=>hasTag(n,t)).map(n=>n.id)); }
+  return new Set();
+}
+
+function drawVenn() {
+  const vA=document.getElementById('venn-a').value;
+  const vB=document.getElementById('venn-b').value;
+  const vC=document.getElementById('venn-c').value;
+  if (!vA||!vB) { toast('Select at least two topics'); return; }
+
+  const sA=getNodesForTopic(vA), sB=getNodesForTopic(vB), sC=getNodesForTopic(vC)||new Set();
+  const has3 = vC&&sC.size>0;
+
+  const c = document.getElementById('venn-container');
+  const W=c.clientWidth, H=c.clientHeight;
+  const svg = d3.select('#venn-svg').attr('width',W).attr('height',H);
+  svg.selectAll('*').remove();
+
+  const r = Math.min(W,H)*.28;
+  const cx=W/2, cy=H/2;
+  let centers;
+  if (has3) {
+    centers = [
+      {x:cx-r*.6,y:cy-r*.35},
+      {x:cx+r*.6,y:cy-r*.35},
+      {x:cx,     y:cy+r*.5}
+    ];
+  } else {
+    centers = [{x:cx-r*.5,y:cy},{x:cx+r*.5,y:cy}];
+  }
+
+  const labels = [vA,vB,vC].filter(Boolean).map(v=>v.replace('type:','').replace('tag:','#'));
+  const colors = ['#4361ee','#7209b7','#f72585'];
+
+  // Draw circles
+  centers.forEach((c,i)=>{
+    svg.append('circle').attr('cx',c.x).attr('cy',c.y).attr('r',r)
+      .attr('fill',colors[i]).attr('fill-opacity',.12)
+      .attr('stroke',colors[i]).attr('stroke-width',1.5).attr('stroke-opacity',.5);
+    // label positions outside
+    const lx = c.x + (c.x-cx)*0.55;
+    const ly = c.y + (c.y-cy)*0.55 - (i<2?r*.15:0);
+    svg.append('text').attr('x',lx).attr('y',ly)
+      .attr('text-anchor','middle').attr('font-size','13px').attr('font-weight','700')
+      .attr('fill',colors[i]).text(labels[i]);
+  });
+
+  // Compute regions
+  function region(id) {
+    const inA=sA.has(id), inB=sB.has(id), inC=has3&&sC.has(id);
+    if (inA&&inB&&inC) return 'ABC';
+    if (inA&&inB) return 'AB';
+    if (inA&&inC) return 'AC';
+    if (inB&&inC) return 'BC';
+    if (inA) return 'A';
+    if (inB) return 'B';
+    if (inC) return 'C';
+    return null;
+  }
+
+  const regionCenters = has3 ? {
+    A:{x:cx-r*.85,y:cy-r*.5}, B:{x:cx+r*.85,y:cy-r*.5}, C:{x:cx,y:cy+r*.8},
+    AB:{x:cx,y:cy-r*.5}, AC:{x:cx-r*.55,y:cy+r*.2}, BC:{x:cx+r*.55,y:cy+r*.2},
+    ABC:{x:cx,y:cy+r*.02}
+  } : {
+    A:{x:cx-r*.85,y:cy}, B:{x:cx+r*.85,y:cy}, AB:{x:cx,y:cy}
+  };
+
+  const regionNodes = {};
+  const allIds = [...new Set([...sA,...sB,...(has3?sC:[])])];
+  allIds.forEach(id=>{
+    const r=region(id); if(!r) return;
+    (regionNodes[r]||(regionNodes[r]=[])).push(id);
+  });
+
+  // Draw node dots
+  Object.entries(regionNodes).forEach(([reg,ids])=>{
+    const rc = regionCenters[reg];
+    if (!rc) return;
+    const cols=3, spacing=22;
+    ids.forEach((id,i)=>{
+      const n=G.nodes.find(n=>n.id===id);
+      if (!n) return;
+      const row=Math.floor(i/cols)-Math.floor(ids.length/cols/2);
+      const col=(i%cols)-Math.floor(cols/2);
+      const nx=rc.x+col*spacing, ny=rc.y+row*spacing;
+      const g=svg.append('g').style('cursor','pointer').on('click',()=>{ focusNode(id); });
+      g.append('circle').attr('cx',nx).attr('cy',ny).attr('r',7)
+        .attr('fill',typeColor(n.type)).attr('fill-opacity',.85)
+        .attr('stroke',typeColor(n.type)).attr('stroke-width',1.5);
+      g.append('title').text(n.label+(n.year?` (${n.year})`:''));
+    });
+
+    // Region count
+    svg.append('text').attr('x',rc.x).attr('y',rc.y-Math.floor(ids.length/cols/2)*22-16)
+      .attr('text-anchor','middle').attr('font-size','11px').attr('fill','#818cf8').attr('font-weight','700')
+      .text(`${ids.length}`);
+  });
+
+  // Summary text
+  const abCount = (regionNodes['AB']||[]).length + (regionNodes['ABC']||[]).length;
+  svg.append('text').attr('x',W/2).attr('y',H-20).attr('text-anchor','middle')
+    .attr('font-size','12px').style('fill','var(--c666)')
+    .text(`${abCount} overlap${abCount!==1?'s':''} found · click dots to explore`);
+}
+
+// ============================================================
+// TIMELINE VIEW
+// ============================================================
+function drawTimeline() {
+  const papers = G.nodes.filter(n=>n.year).sort((a,b)=>a.year-b.year);
+  if (!papers.length) { toast('No nodes with year data'); return; }
+
+  const c = document.getElementById('timeline-container');
+  const W=Math.max(c.clientWidth, papers.length*120+200);
+  const H=c.clientHeight;
+  const margin={top:60,right:40,bottom:40,left:60};
+
+  const svg = d3.select('#timeline-svg').attr('width',W).attr('height',H);
+  svg.selectAll('*').remove();
+
+  const years=[...new Set(papers.map(n=>n.year))].sort();
+  const xScale = d3.scalePoint().domain(years).range([margin.left,W-margin.right]).padding(.5);
+
+  // Axis
+  svg.append('g').attr('transform',`translate(0,${H/2})`).call(
+    d3.axisBottom(xScale).tickFormat(d=>d).tickSize(5)
+  ).call(g=>{
+    g.select('.domain').style('stroke','var(--border)');
+    g.selectAll('.tick line').style('stroke','var(--border)');
+    g.selectAll('.tick text').style('fill','var(--c666)').attr('font-size','11px');
+  });
+
+  // Nodes by year
+  const byYear = d3.group(papers, n=>n.year);
+  byYear.forEach((nodes,year)=>{
+    const x=xScale(year);
+    nodes.forEach((n,i)=>{
+      const above = i%2===0;
+      const y = H/2 - (above?1:-1) * (50+Math.floor(i/2)*52);
+      const g=svg.append('g').style('cursor','pointer').on('click',()=>focusNode(n.id));
+      g.append('line').attr('x1',x).attr('y1',H/2).attr('x2',x).attr('y2',y+(above?16:-16))
+        .style('stroke','var(--border)').attr('stroke-width',1);
+      g.append('circle').attr('cx',x).attr('cy',y).attr('r',14)
+        .attr('fill',typeColor(n.type)).attr('fill-opacity',.85)
+        .attr('stroke',typeColor(n.type)).attr('stroke-width',2);
+      // First author at 45°, pointing away from the axis
+      const fa = firstAuthorEtAl(n.authors);
+      if (fa) {
+        const lx = x + 12, ly = y + (above ? -12 : 12);
+        g.append('text').attr('class','tl-author')
+          .attr('x',lx).attr('y',ly).attr('dominant-baseline','central')
+          .attr('transform',`rotate(${above?-45:45},${lx},${ly})`)
+          .text(fa);
+      }
+      g.append('title').text(`${n.label} (${n.year})${n.authors?'\n'+n.authors:''}`);
+    });
+  });
+}
+
+// ============================================================
+// SEARCH
+// ============================================================
+function doSearch() {
+  const q = document.getElementById('search-q').value.toLowerCase();
+  const ft = document.getElementById('search-type').value;
+  const ftag = document.getElementById('search-tag').value;
+  const fproj = document.getElementById('search-proj').value;
+
+  const results = G.nodes.filter(n=>{
+    const mq = !q || n.label.toLowerCase().includes(q) ||
+      (n.description||'').toLowerCase().includes(q) ||
+      (n.summary||'').toLowerCase().includes(q) ||
+      (n.authors||'').toLowerCase().includes(q) ||
+      (n.projects||[]).some(p=>p.toLowerCase().includes(q)) ||
+      (n.tags||[]).some(t=>t.toLowerCase().includes(q));
+    const mt = !ft || n.type===ft;
+    const mtag = !ftag || hasTag(n, ftag);
+    const mproj = !fproj || (n.projects||[]).includes(fproj);
+    return mq&&mt&&mtag&&mproj;
+  });
+
+  const el = document.getElementById('search-results');
+  if (!results.length) { el.innerHTML='<div style="color:var(--c555);font-size:11px;text-align:center;padding:14px">No results</div>'; return; }
+  el.innerHTML = results.map(n=>{
+    const deg=G.links.filter(l=>sid(l)===n.id||tid(l)===n.id).length;
+    return `<div class="sr-item" onclick="focusNode('${escAttr(n.id)}')">
+      <div class="sr-dot" style="background:${typeColor(n.type)}"></div>
+      <div class="sr-info">
+        <div class="sr-label">${esc(n.label)}</div>
+        <div class="sr-sub">${n.type}${n.year?` · ${n.year}`:''}${n.venue?` · ${esc(n.venue)}`:''} · ${deg} link${deg!==1?'s':''}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ============================================================
+// STATS
+// ============================================================
+function updateAll() {
+  updateSelects();
+  updateStats();
+  doSearch();
+  buildVennOptions();
+  updateStatusBar();
+  if (currentView==='studies') renderStudies();
+}
+
+function updateStats() {
+  const papers=G.nodes.filter(n=>n.type==='Source').length;
+  const gaps=G.nodes.filter(n=>n.type==='Gap').length;
+  document.getElementById('s-nodes').textContent=G.nodes.length;
+  document.getElementById('s-links').textContent=G.links.length;
+  document.getElementById('s-papers').textContent=papers;
+  document.getElementById('s-gaps').textContent=gaps;
+
+  // By type
+  const byType={};
+  G.nodes.forEach(n=>{byType[n.type]=(byType[n.type]||0)+1;});
+  document.getElementById('stats-types').innerHTML=Object.entries(byType).sort((a,b)=>b[1]-a[1])
+    .map(([t,c])=>`<div class="cat-item">
+      <div class="cat-dot" style="background:${typeColor(t)}"></div>
+      <span style="flex:1;font-size:12px">${TYPE_ICONS[t]||''} ${t}</span>
+      <span style="color:var(--c555);font-size:11px">${c}</span>
+    </div>`).join('');
+
+  // Top nodes
+  const degs=G.nodes.map(n=>({n, d:G.links.filter(l=>sid(l)===n.id||tid(l)===n.id).length}))
+    .sort((a,b)=>b.d-a.d).slice(0,6);
+  document.getElementById('stats-top').innerHTML=degs.filter(x=>x.d>0)
+    .map(({n,d})=>`<div class="cat-item" style="cursor:pointer" onclick="focusNode('${escAttr(n.id)}')">
+      <div class="cat-dot" style="background:${typeColor(n.type)}"></div>
+      <span style="flex:1;font-size:12px">${esc(n.label)}</span>
+      <span style="color:#818cf8;font-size:11px;font-weight:700">${d}</span>
+    </div>`).join('') || '<div style="color:var(--c555);font-size:11px">No connections yet</div>';
+
+  // All projects
+  document.getElementById('stats-projects').innerHTML=allProjects()
+    .map(p=>`<span class="tag proj" onclick="openStudy('${escAttr(p)}')">📚 ${esc(p)}</span>`).join(' ')
+    || '<div style="color:var(--c555);font-size:11px">No projects yet</div>';
+
+  // All tags
+  document.getElementById('stats-tags').innerHTML=allTags()
+    .map(t=>`<span class="tag" style="cursor:pointer" onclick="document.getElementById('search-q').value='${escAttr(t)}';doSearch()">${esc(t)}</span>`).join(' ');
+}
+
+function updateSelects() {
+  const sorted=[...G.nodes].sort((a,b)=>a.label.localeCompare(b.label));
+  ['edge-src','edge-tgt'].forEach((id,i)=>{
+    const sel=document.getElementById(id), cur=sel.value;
+    sel.innerHTML=`<option value="">${i===0?'Select source...':'Select target...'}</option>`;
+    sorted.forEach(n=>sel.insertAdjacentHTML('beforeend',`<option value="${esc(n.id)}">${TYPE_ICONS[n.type]||''} ${esc(n.label)}</option>`));
+    if(cur) sel.value=cur;
+  });
+
+  const types=[...new Set(G.nodes.map(n=>n.type))];
+  const searchType=document.getElementById('search-type');
+  const curT=searchType.value;
+  searchType.innerHTML='<option value="">All types</option>';
+  types.forEach(t=>searchType.insertAdjacentHTML('beforeend',`<option value="${t}">${t}</option>`));
+  if(curT) searchType.value=curT;
+
+  const searchTag=document.getElementById('search-tag');
+  const curTag=searchTag.value;
+  searchTag.innerHTML='<option value="">All tags</option>';
+  allTags().forEach(t=>searchTag.insertAdjacentHTML('beforeend',`<option value="${esc(tkey(t))}">${esc(t)}</option>`));
+  if(curTag) searchTag.value=curTag;
+
+  const projs=allProjects();
+  const searchProj=document.getElementById('search-proj');
+  const curP=searchProj.value;
+  searchProj.innerHTML='<option value="">All projects</option>';
+  projs.forEach(p=>searchProj.insertAdjacentHTML('beforeend',`<option value="${esc(p)}">${esc(p)}</option>`));
+  if(curP) searchProj.value=curP;
+  document.getElementById('project-list').innerHTML=projs.map(p=>`<option value="${esc(p)}">`).join('');
+}
+
+function updateStatusBar() {
+  const counts=[
+    `${G.nodes.length} nodes`,`${G.links.length} links`,
+    `${G.nodes.filter(n=>n.type==='Gap').length} gaps`
+  ].join(' · ');
+  document.getElementById('status-counts').textContent=counts;
+}
+
+// ============================================================
+// UI SETUP
+// ============================================================
+function setupUI() {
+  // Type selector
+  document.querySelectorAll('.type-card').forEach(card=>{
+    card.addEventListener('click',()=>{
+      document.querySelectorAll('.type-card').forEach(c=>c.classList.remove('selected'));
+      card.classList.add('selected');
+      selectedType=card.dataset.type;
+      const showPaper=['Source','Method','Data'].includes(selectedType);
+      document.getElementById('paper-fields').style.display=showPaper?'block':'none';
+    });
+  });
+
+  // Tab switching
+  document.querySelectorAll('.tab-btn').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('tab-'+btn.dataset.tab).classList.add('active');
+      if(btn.dataset.tab==='search') doSearch();
+      if(btn.dataset.tab==='stats') updateStats();
+    });
+  });
+
+  // View switching
+  function switchToView(view) {
+    currentView = view;
+    document.getElementById('venn-container').classList.toggle('active', view==='venn');
+    document.getElementById('timeline-container').classList.toggle('active', view==='timeline');
+    document.getElementById('studies-container').classList.toggle('active', view==='studies');
+    document.getElementById('legend').classList.toggle('hidden', view!=='clusters');
+    if (view==='clusters') renderHulls();
+  }
+
+  document.querySelectorAll('.view-tab').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      document.querySelectorAll('.view-tab').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      switchToView(btn.dataset.view);
+      if(currentView==='venn') buildVennOptions();
+      if(currentView==='timeline') drawTimeline();
+      if(currentView==='studies') renderStudies();
+    });
+  });
+
+  // Studies controls
+  document.getElementById('st-q').addEventListener('input', e=>{ ST.query=e.target.value; ST.kw.clear(); renderStudies(); });
+  document.getElementById('st-filter').addEventListener('input', e=>{ ST.filter=e.target.value; renderStudies(); });
+  document.getElementById('st-copy').addEventListener('click', copyStudyMarkdown);
+  window.addEventListener('hashchange', applyStudyHash);
+
+  // Buttons
+  document.getElementById('btn-add-node').addEventListener('click',addNode);
+  document.getElementById('btn-add-edge').addEventListener('click',addEdge);
+  document.getElementById('btn-open').addEventListener('click',()=>sync.open());
+  document.getElementById('btn-save').addEventListener('click',()=>sync.save());
+  document.getElementById('btn-export').addEventListener('click',()=>sync.exportCopy());
+
+  // Enter key on label field
+  document.getElementById('node-label').addEventListener('keydown',e=>{ if(e.key==='Enter') addNode(); });
+
+  // Detail panel close
+  document.getElementById('dp-close').addEventListener('click',()=>{ closeDetail(); clearHL(); });
+
+  // Context menu
+  document.getElementById('ctx-edit').addEventListener('click',()=>{ if(ctxNode)openEditModal(ctxNode.id); hideCtx(); });
+  document.getElementById('ctx-delete').addEventListener('click',()=>{ if(ctxNode)deleteNode(ctxNode.id); hideCtx(); });
+  document.getElementById('ctx-focus').addEventListener('click',()=>{ if(ctxNode){selectNode(ctxNode);focusNode(ctxNode.id);} hideCtx(); });
+  document.getElementById('ctx-pin').addEventListener('click',()=>{
+    if(ctxNode){ const n=G.nodes.find(n=>n.id===ctxNode.id); if(n){if(n.fx!=null){n.fx=null;n.fy=null;toast('Unpinned');}else{n.fx=n.x;n.fy=n.y;toast('Pinned');} sim.alpha(.1).restart(); sync.changed(); } }
+    hideCtx();
+  });
+  document.getElementById('ctx-connect').addEventListener('click',()=>{
+    if(ctxNode){
+      document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));
+      document.querySelector('[data-tab="connect"]').classList.add('active');
+      document.getElementById('tab-connect').classList.add('active');
+      document.getElementById('edge-src').value=ctxNode.id;
+    }
+    hideCtx();
+  });
+  document.addEventListener('click',hideCtx);
+
+  // Edit modal
+  document.getElementById('em-cancel').addEventListener('click',closeEditModal);
+  document.getElementById('em-save').addEventListener('click',saveEdit);
+  document.getElementById('edit-modal').addEventListener('click',e=>{ if(e.target===document.getElementById('edit-modal'))closeEditModal(); });
+
+  // Venn
+  document.getElementById('btn-venn').addEventListener('click',drawVenn);
+
+  // Search
+  document.getElementById('search-q').addEventListener('input',doSearch);
+  document.getElementById('search-type').addEventListener('change',doSearch);
+  document.getElementById('search-proj').addEventListener('change',doSearch);
+  document.getElementById('search-tag').addEventListener('change',doSearch);
+
+  // Edge rel preset → fill text input
+  document.getElementById('edge-rel-preset').addEventListener('change',e=>{
+    if(e.target.value) document.getElementById('edge-rel').value=e.target.value;
+  });
+
+  // Zoom
+  const svg=d3.select('#graph-svg');
+  document.getElementById('z-in').addEventListener('click',()=>svg.transition().call(svgZoom.scaleBy,1.35));
+  document.getElementById('z-out').addEventListener('click',()=>svg.transition().call(svgZoom.scaleBy,.74));
+  document.getElementById('z-fit').addEventListener('click',()=>{
+    if(!G.nodes.length) return;
+    const xs=G.nodes.map(n=>n.x||0), ys=G.nodes.map(n=>n.y||0);
+    const xMin=Math.min(...xs)-50, xMax=Math.max(...xs)+50, yMin=Math.min(...ys)-50, yMax=Math.max(...ys)+50;
+    const c=document.getElementById('graph-container');
+    const k=Math.min(.9,Math.min(c.clientWidth/(xMax-xMin),c.clientHeight/(yMax-yMin)));
+    const tx=c.clientWidth/2-k*(xMin+xMax)/2, ty=c.clientHeight/2-k*(yMin+yMax)/2;
+    svg.transition().duration(750).call(svgZoom.transform,d3.zoomIdentity.translate(tx,ty).scale(k));
+  });
+
+  // Link popup buttons
+  document.getElementById('lp-save').addEventListener('click', saveLinkEdit);
+  document.getElementById('lp-delete').addEventListener('click', ()=>{ if(activeLinkId) deleteLink(activeLinkId); });
+  document.getElementById('lp-cancel').addEventListener('click', closeLinkPopup);
+  document.getElementById('lp-label').addEventListener('keydown', e=>{
+    if (e.key==='Enter') saveLinkEdit();
+    if (e.key==='Escape') closeLinkPopup();
+  });
+  // Close link popup when clicking outside it
+  document.addEventListener('click', e=>{
+    const popup=document.getElementById('link-popup');
+    if (popup.classList.contains('open') && !popup.contains(e.target)) closeLinkPopup();
+  });
+
+  // Keyboard
+  document.addEventListener('keydown',e=>{
+    if(e.key==='Escape'){ closeDetail(); clearHL(); closeEditModal(); hideCtx(); closeLinkPopup(); }
+    if((e.ctrlKey||e.metaKey)&&e.key==='s'){ e.preventDefault(); sync.save(); }
+    if((e.ctrlKey||e.metaKey)&&e.key==='f'){ e.preventDefault();
+      document.querySelector('[data-tab="search"]').click();
+      document.getElementById('search-q').focus();
+    }
+  });
+
+  // Resize
+  window.addEventListener('resize',()=>{
+    const c=document.getElementById('graph-container');
+    sim.force('center',d3.forceCenter(c.clientWidth/2,c.clientHeight/2)).alpha(.05).restart();
+  });
+}
+
+// ============================================================
+// UTILS
+// ============================================================
+function normalizeLinks() {
+  G.links=G.links.map(l=>({...l,source:sid(l),target:tid(l)}));
+}
+function allTags(){ return uniqTags(G.nodes.flatMap(n=>n.tags||[])); }
+function hasTag(n, t){ const k=tkey(t); return (n.tags||[]).some(x=>tkey(x)===k); }
+function allProjects(){ return [...new Set(G.nodes.flatMap(n=>n.projects||[]))].sort((a,b)=>a.localeCompare(b)); }
+
+// ============================================================
+// STUDIES VIEW — search a project, boxed summaries, keyword filters
+// ============================================================
+const ST = { query:'', filter:'', kw:new Set(), mode:'all', visible:[], title:'', projects:[] };
+
+function openStudy(name) {
+  ST.query = name; ST.filter = ''; ST.kw.clear();
+  document.getElementById('st-q').value = name;
+  document.getElementById('st-filter').value = '';
+  document.querySelector('[data-view="studies"]').click();
+}
+
+function applyStudyHash() {
+  const m = location.hash.match(/^#study=(.*)$/);
+  if (m) openStudy(decodeURIComponent(m[1]));
+}
+
+// Resolve the query to a set of projects (exact match wins, else substring).
+// Falls back to tag matching when no project name matches.
+function resolveStudy(q) {
+  q = q.trim().toLowerCase();
+  const projs = allProjects();
+  if (!q) return { projects:[], nodes:[], viaTag:false };
+  let hit = projs.filter(p=>p.toLowerCase()===q);
+  if (!hit.length) hit = projs.filter(p=>p.toLowerCase().includes(q));
+  if (hit.length) {
+    const set = new Set(hit);
+    return { projects:hit, nodes:G.nodes.filter(n=>(n.projects||[]).some(p=>set.has(p))), viaTag:false };
+  }
+  const nodes = G.nodes.filter(n=>(n.tags||[]).some(t=>t.toLowerCase().includes(q)));
+  return { projects:[], nodes, viaTag:true };
+}
+
+function projectTags(p) {
+  return new Map(G.nodes.filter(n=>(n.projects||[]).includes(p)).flatMap(n=>n.tags||[]).map(t=>[tkey(t), t]));
+}
+
+// Other projects ranked by keyword overlap (Jaccard) with the current result set
+function relatedStudies(currentProjects, resultNodes) {
+  const mine = new Set(resultNodes.flatMap(n=>n.tags||[]).map(tkey));
+  if (!mine.size) return [];
+  const cur = new Set(currentProjects);
+  return allProjects().filter(p=>!cur.has(p)).map(p=>{
+    const theirs = projectTags(p);
+    const shared = [...theirs].filter(([k])=>mine.has(k)).map(([,t])=>t).sort(byAlpha);
+    const union = new Set([...mine, ...theirs.keys()]).size;
+    return { p, shared, score: union ? shared.length/union : 0 };
+  }).filter(r=>r.shared.length).sort((a,b)=>b.score-a.score).slice(0,8);
+}
+
+function renderStudies() {
+  const rail = document.getElementById('st-rail');
+  const main = document.getElementById('st-main');
+  const projs = allProjects();
+  const q = ST.query.trim().toLowerCase();
+
+  const res = resolveStudy(ST.query);
+  ST.projects = res.projects;
+  const activeSet = new Set(res.projects);
+  rail.innerHTML = `<div class="dp-section-title">Studies / Projects</div>` + (projs.length
+    ? projs.map(p=>{
+        const c = G.nodes.filter(n=>(n.projects||[]).includes(p)).length;
+        return `<div class="st-proj ${activeSet.has(p)?'active':''}" data-act="study" data-v="${esc(p)}" title="${esc(p)}">
+          <span class="st-proj-name">📚 ${esc(p)}</span><span class="st-proj-count">${c}</span></div>`;
+      }).join('')
+    : '<div style="color:var(--c555);font-size:11px;line-height:1.6">No projects yet. Add a “Study / Project” to any node (Add form or Edit).</div>');
+
+  try { history.replaceState(null,'', q ? '#study='+encodeURIComponent(ST.query.trim()) : location.pathname+location.search); } catch(_) {}
+
+  if (!q) {
+    ST.visible = [];
+    main.innerHTML = `<div class="st-empty">Type a study or project name above, or pick one on the left.<br><br>
+      Results show each source's title, URL and summary in its own box, with keyword filters.</div>`;
+    return;
+  }
+
+  // Keyword + text filters
+  let nodes = res.nodes.slice();
+  const kwCounts = new Map(); // key → {label, count}
+  nodes.forEach(n=>uniqTags(n.tags).forEach(t=>{
+    const e = kwCounts.get(tkey(t)) || {label:t, count:0}; e.count++; kwCounts.set(tkey(t), e);
+  }));
+  [...ST.kw].forEach(k=>{ if(!kwCounts.has(k)) ST.kw.delete(k); });
+  if (ST.kw.size) {
+    nodes = nodes.filter(n=>{
+      const t = new Set((n.tags||[]).map(tkey));
+      return ST.mode==='all' ? [...ST.kw].every(k=>t.has(k)) : [...ST.kw].some(k=>t.has(k));
+    });
+  }
+  const f = ST.filter.trim().toLowerCase();
+  if (f) nodes = nodes.filter(n=>[n.label,n.summary,n.description,n.authors,n.venue].some(v=>(v||'').toLowerCase().includes(f)));
+
+  // Sources first, newest first
+  nodes.sort((a,b)=>(a.type==='Source'?0:1)-(b.type==='Source'?0:1) || (b.year||0)-(a.year||0) || a.label.localeCompare(b.label));
+  ST.visible = nodes;
+  ST.title = res.viaTag ? `Keyword: ${ST.query.trim()}` : res.projects.join(', ');
+
+  const related = relatedStudies(res.projects, res.nodes);
+  const head = res.viaTag
+    ? `<h2>🏷 ${esc(ST.query.trim())}</h2><div class="st-sub">No project by that name — showing items tagged with it.</div>`
+    : `<h2>📚 ${esc(res.projects.join(' · '))}</h2>`;
+
+  const chips = [...kwCounts.entries()].sort((a,b)=>byAlpha(a[1].label,b[1].label))
+    .map(([k,{label,count}])=>`<span class="st-chip ${ST.kw.has(k)?'on':''}" data-act="kw" data-v="${esc(k)}">${esc(label)}<span class="n">${count}</span></span>`).join('');
+
+  main.innerHTML = `
+    <div class="st-head">${head}
+      <div class="st-sub">${nodes.length} of ${res.nodes.length} item${res.nodes.length!==1?'s':''}</div>
+    </div>
+    ${related.length ? `<div class="st-section"><div class="st-section-title">Related studies · shared keywords</div>
+      ${related.map(r=>`<span class="st-rel" data-act="study" data-v="${esc(r.p)}" title="${esc(r.shared.join(', '))}">📚 ${esc(r.p)}
+        <span class="st-rel-kw">${esc(r.shared.slice(0,4).join(', '))}${r.shared.length>4?' …':''}</span></span>`).join('')}
+    </div>` : ''}
+    ${kwCounts.size ? `<div class="st-section"><div class="st-section-title">Filter by keyword
+        <button class="btn btn-secondary btn-sm" data-act="mode" style="text-transform:none;letter-spacing:0">Match: ${ST.mode==='all'?'ALL':'ANY'}</button>
+        ${ST.kw.size?`<button class="btn btn-secondary btn-sm" data-act="clearkw" style="text-transform:none;letter-spacing:0">Clear</button>`:''}
+      </div>${chips}</div>` : ''}
+    ${nodes.length ? `<div class="st-grid">${nodes.map(studyCard).join('')}</div>`
+      : `<div class="st-empty">${res.nodes.length ? 'No items match these filters.' : 'No matches.'}${!res.nodes.length && projs.length ? `<br><br>Known projects: ${projs.map(esc).join(', ')}` : ''}</div>`}`;
+}
+
+function studyCard(n) {
+  const c = typeColor(n.type);
+  const title = n.url
+    ? `<a class="st-title" href="${esc(safeUrl(n.url))}" target="_blank" rel="noopener">${esc(n.label)}</a>`
+    : `<span class="st-title">${esc(n.label)}</span>`;
+  const meta = [shortAuthors(n.authors), n.year, n.venue].filter(Boolean).map(esc).join(' · ');
+  const others = (n.projects||[]).filter(p=>!ST.projects.includes(p));
+  return `<div class="st-card" style="border-top:3px solid ${c}">
+    <div class="st-card-top">${title}
+      <span class="dp-badge" style="background:${c}22;color:${c}">${TYPE_ICONS[n.type]||''} ${esc(n.type)}</span></div>
+    ${n.url ? `<a class="st-url" href="${esc(safeUrl(n.url))}" target="_blank" rel="noopener">${esc(n.url)}</a>` : ''}
+    ${meta ? `<div class="st-meta">${meta}</div>` : ''}
+    ${n.summary ? `<div class="st-summary">${esc(n.summary)}</div>`
+      : `<div class="st-summary empty" data-act="edit" data-v="${esc(n.id)}">No summary yet — click to add one</div>`}
+    ${(n.tags||[]).length ? `<div>${uniqTags(n.tags).map(t=>`<span class="st-chip ${ST.kw.has(tkey(t))?'on':''}" data-act="kw" data-v="${esc(tkey(t))}">${esc(t)}</span>`).join('')}</div>` : ''}
+    ${others.length ? `<div class="st-also">Also in: ${others.map(p=>`<span class="tag proj" data-act="study" data-v="${esc(p)}">📚 ${esc(p)}</span>`).join('')}</div>` : ''}
+    ${n.description ? `<details><summary>Notes</summary><div class="st-notes">${esc(n.description)}</div></details>` : ''}
+    <div class="st-foot">
+      <button class="btn btn-secondary btn-sm" data-act="graph" data-v="${esc(n.id)}">◎ Show in graph</button>
+      <button class="btn btn-secondary btn-sm" data-act="edit" data-v="${esc(n.id)}">✏ Edit</button>
+    </div>
+  </div>`;
+}
+
+// "Jane Smith, Bo Lee" / "Smith J; Lee B" / "Smith et al." → "Smith et al."; one author → "Smith"
+function firstAuthorEtAl(a) {
+  const s = String(a||'').trim();
+  if (!s) return '';
+  const etal = /\bet al\.?/i.test(s);
+  const parts = s.replace(/\bet al\.?/i,'').split(/,|;|&|\band\b/i).map(x=>x.trim()).filter(Boolean);
+  if (!parts.length) return '';
+  // Last name = last word that isn't an initial ("J.", "JK")
+  const words = parts[0].split(/\s+/);
+  const last = [...words].reverse().find(w => !/^([A-Z]\.?){1,3}$/.test(w)) || words[0];
+  return last + (etal || parts.length > 1 ? ' et al.' : '');
+}
+
+function shortAuthors(a) {
+  const names = String(a||'').split(',').map(x=>x.trim()).filter(Boolean);
+  return names.slice(0,3).join(', ') + (names.length>3 ? ' et al.' : '');
+}
+
+function copyStudyMarkdown() {
+  if (!ST.visible.length) { toast('Nothing to copy'); return; }
+  const md = `## ${ST.title}\n\n` + ST.visible.map(n=>{
+    const meta = [n.authors, n.year, n.venue].filter(Boolean).join(' · ');
+    return `### ${n.url ? `[${n.label}](${n.url})` : n.label}\n` +
+      (meta ? `${meta}\n` : '') +
+      (n.summary ? `\n${n.summary}\n` : '') +
+      ((n.tags||[]).length ? `\nKeywords: ${uniqTags(n.tags).join(', ')}\n` : '');
+  }).join('\n');
+  navigator.clipboard.writeText(md).then(()=>toast('Copied as Markdown'), ()=>toast('Clipboard not available'));
+}
+
+document.getElementById('studies-container').addEventListener('click', e=>{
+  const el = e.target.closest('[data-act]');
+  if (!el) return;
+  const v = el.dataset.v;
+  switch (el.dataset.act) {
+    case 'study': openStudy(v); break;
+    case 'kw': ST.kw.has(v) ? ST.kw.delete(v) : ST.kw.add(v); renderStudies(); break;
+    case 'mode': ST.mode = ST.mode==='all' ? 'any' : 'all'; renderStudies(); break;
+    case 'clearkw': ST.kw.clear(); renderStudies(); break;
+    case 'edit': openEditModal(v); break;
+    case 'graph': focusNode(v); break;
+  }
+});
+
+// Start
+init();
+</script>
+</body>
+</html>

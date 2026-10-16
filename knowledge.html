@@ -1,0 +1,1026 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Knowledge</title>
+<script src="common.js"></script>
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<style>
+/* ---- Theme tokens (dark default; light via data-theme or OS preference) ---- */
+:root{
+  color-scheme:dark;
+  --bg:#0d0d1a; --panel:#12122a; --surface:#1a1a35; --input:#0d0d1a;
+  --btn2:#1e1e40; --btn2-hover:#2a2a50; --border:#2a2a50;
+  --text:#e0e0f0; --muted:#8a8aa8; --faint:#55557a;
+  --accent:#818cf8; --primary:#4361ee; --primary-hover:#3451d1; --danger:#f72585;
+  --link:#4a4a7a; --up:#f77f00; --down:#06d6a0;
+  --shadow:rgba(0,0,0,.5); --banner-bg:#3a2a00; --banner-text:#ffd166;
+}
+:root[data-theme="light"]{
+  color-scheme:light;
+  --bg:#f4f5fa; --panel:#ffffff; --surface:#ffffff; --input:#f8f9fc;
+  --btn2:#eef0f7; --btn2-hover:#e1e4f0; --border:#d9dcea;
+  --text:#1d1e35; --muted:#5b5e7d; --faint:#8b8ea8;
+  --accent:#4f46e5; --primary:#4361ee; --primary-hover:#3451d1; --danger:#e11d74;
+  --link:#b4b8d4; --up:#d96a00; --down:#059669;
+  --shadow:rgba(30,30,60,.15); --banner-bg:#fff4d6; --banner-text:#7a5200;
+}
+@media (prefers-color-scheme: light){
+  :root:not([data-theme="dark"]){
+    color-scheme:light;
+    --bg:#f4f5fa; --panel:#ffffff; --surface:#ffffff; --input:#f8f9fc;
+    --btn2:#eef0f7; --btn2-hover:#e1e4f0; --border:#d9dcea;
+    --text:#1d1e35; --muted:#5b5e7d; --faint:#8b8ea8;
+    --accent:#4f46e5; --primary:#4361ee; --primary-hover:#3451d1; --danger:#e11d74;
+    --link:#b4b8d4; --up:#d96a00; --down:#059669;
+    --shadow:rgba(30,30,60,.15); --banner-bg:#fff4d6; --banner-text:#7a5200;
+  }
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);height:100vh;display:flex;flex-direction:column;overflow:hidden}
+a{color:var(--accent)}
+
+/* ---- Header ---- */
+#header{background:var(--panel);padding:10px 20px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);gap:12px;flex-shrink:0}
+.h-left{display:flex;align-items:baseline;gap:12px;min-width:0}
+#header h1{font-size:17px;font-weight:700;color:var(--accent);white-space:nowrap}
+.file-name{font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.header-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
+.nav-link{font-size:12px;color:var(--muted);text-decoration:none;padding:4px 6px}
+.nav-link:hover{color:var(--accent)}
+
+#relink-banner{display:none;align-items:center;gap:12px;background:var(--banner-bg);color:var(--banner-text);padding:8px 20px;font-size:12px;flex-shrink:0}
+
+/* ---- Buttons / inputs ---- */
+.btn{padding:7px 14px;border-radius:8px;border:none;cursor:pointer;font-size:12px;font-weight:600;transition:background .2s;font-family:inherit}
+.btn-primary{background:var(--primary);color:#fff}.btn-primary:hover{background:var(--primary-hover)}
+.btn-secondary{background:var(--btn2);color:var(--text);border:1px solid var(--border)}.btn-secondary:hover{background:var(--btn2-hover)}
+.btn-danger{background:var(--danger);color:#fff}.btn-danger:hover{opacity:.85}
+.btn-sm{padding:4px 10px;font-size:11px}
+.btn-full{width:100%}
+.icon-btn{background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;padding:2px 6px;border-radius:6px}
+.icon-btn:hover{color:var(--text);background:var(--btn2)}
+#theme-btn{font-size:14px;line-height:1;padding:5px 9px}
+input[type=text],input:not([type]),textarea,select{width:100%;background:var(--input);border:1px solid var(--border);color:var(--text);padding:7px 10px;border-radius:8px;font-size:12px;outline:none;font-family:inherit}
+input:focus,textarea:focus,select:focus{border-color:var(--accent)}
+textarea{resize:vertical}
+label{display:block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:4px}
+.form-g{margin-bottom:10px}
+.muted{color:var(--muted);font-size:11px}
+
+/* ---- Layout ---- */
+#app{display:flex;flex:1;overflow:hidden;position:relative;min-height:0}
+#sidebar{width:270px;background:var(--panel);border-right:1px solid var(--border);padding:16px;display:flex;flex-direction:column;gap:18px;overflow-y:auto;flex-shrink:0}
+#sidebar h3{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:10px}
+#main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+
+/* ---- Pills / chips ---- */
+.pill-row{display:flex;flex-wrap:wrap;gap:5px}
+.pill{padding:4px 10px;border-radius:20px;border:2px solid transparent;cursor:pointer;font-size:11px;font-weight:600;background:var(--btn2);color:var(--muted);transition:all .15s}
+.pill .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px;vertical-align:0}
+.pill:hover{color:var(--text)}
+.pill.sel{border-color:var(--accent);color:var(--text)}
+.pill .n{opacity:.6;margin-left:4px;font-weight:500}
+
+/* ---- Tabs + status ---- */
+#tabs{display:flex;align-items:center;gap:4px;padding:8px 16px;border-bottom:1px solid var(--border);background:var(--panel);flex-shrink:0}
+.tab{padding:6px 14px;border-radius:8px;border:none;background:none;color:var(--muted);cursor:pointer;font-size:12px;font-weight:600;font-family:inherit}
+.tab:hover{color:var(--text)}
+.tab.active{background:var(--btn2);color:var(--text)}
+#status-bar{margin-left:auto;display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);min-width:0}
+#status-txt{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#save-dot{width:8px;height:8px;border-radius:50%;background:var(--down);flex-shrink:0}
+#save-dot.dirty{background:var(--up)}
+
+.view{display:none;flex:1;min-height:0}
+.view.active{display:flex}
+
+/* ---- Graph ---- */
+#graph-container{flex:1;position:relative;overflow:hidden}
+#graph-svg{width:100%;height:100%;display:block;cursor:grab}
+#graph-svg:active{cursor:grabbing}
+.link-line{stroke:var(--link);stroke-width:1.6;fill:none;transition:opacity .2s}
+.link-line.related_to{stroke-dasharray:6 4}
+.link-line.contrasts_with{stroke-dasharray:2 4;stroke-width:2}
+.link-line.hl-up{stroke:var(--up);stroke-width:2.4}
+.link-line.hl-down{stroke:var(--down);stroke-width:2.4}
+.link-line.hl-rel{stroke:var(--accent);stroke-width:2.2}
+.link-line.faded,.link-line.dim{opacity:.08}
+.link-hit{stroke:transparent;stroke-width:12;cursor:pointer}
+path.arrow{fill:var(--link)} path.arrow-up{fill:var(--up)} path.arrow-down{fill:var(--down)}
+.node-g{cursor:pointer;transition:opacity .2s}
+.node-circle{stroke:var(--bg);stroke-width:2;fill-opacity:.9}
+.node-g.pinned .node-circle{stroke:var(--text);stroke-dasharray:3 2;stroke-width:1.5}
+.node-g.hl-self .node-circle{stroke:var(--text);stroke-width:3;stroke-dasharray:none}
+.node-g.hl-up .node-circle{stroke:var(--up);stroke-width:3;stroke-dasharray:none}
+.node-g.hl-down .node-circle{stroke:var(--down);stroke-width:3;stroke-dasharray:none}
+.node-g.hl-rel .node-circle{stroke:var(--accent);stroke-width:3;stroke-dasharray:none}
+.node-g.faded,.node-g.dim{opacity:.15}
+.node-label{fill:var(--text);font-size:11px;text-anchor:middle;pointer-events:none;paint-order:stroke;stroke:var(--bg);stroke-width:3px;stroke-linejoin:round}
+
+#legend{position:absolute;left:12px;bottom:12px;background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:8px 10px;font-size:11px;color:var(--muted);display:flex;flex-direction:column;gap:4px;max-width:calc(100% - 24px);opacity:.95}
+#legend .row{display:flex;flex-wrap:wrap;gap:4px 12px;align-items:center}
+#legend .dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:4px}
+#legend svg{vertical-align:middle;margin-right:4px}
+#legend line{stroke:var(--muted);stroke-width:2}
+#graph-tools{position:absolute;right:12px;top:12px;display:flex;gap:6px}
+#empty-state{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:var(--muted);font-size:13px;text-align:center;padding:16px;pointer-events:none}
+#empty-state .big{font-size:36px}
+
+#link-popup{position:absolute;display:none;width:240px;background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:12px;box-shadow:0 8px 24px var(--shadow);z-index:20}
+#link-popup.open{display:block}
+#lp-from-to{font-size:12px;margin-bottom:8px;line-height:1.4}
+.lp-actions{display:flex;gap:6px;margin-top:8px}
+
+/* ---- List view ---- */
+#list-view{overflow-y:auto;padding:16px 20px;flex-direction:column;gap:20px}
+.dom-group h2{font-size:13px;font-weight:700;display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.dom-group h2 .dot{width:10px;height:10px;border-radius:50%}
+.dom-group h2 .count{color:var(--muted);font-weight:500}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px;cursor:pointer;transition:border-color .15s}
+.card:hover{border-color:var(--accent)}
+.card.sel{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.card-title{font-size:13px;font-weight:700;margin-bottom:4px}
+.card-meta{font-size:11px;color:var(--muted);margin-bottom:6px}
+.card-notes{font-size:12px;color:var(--muted);line-height:1.45;white-space:pre-wrap;overflow:hidden;display:-webkit-box;-webkit-line-clamp:3;line-clamp:3;-webkit-box-orient:vertical}
+.tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:8px}
+.tag{font-size:10px;padding:2px 7px;border-radius:10px;background:var(--btn2);color:var(--muted)}
+.list-empty{color:var(--muted);font-size:13px;padding:40px;text-align:center}
+
+/* ---- Detail panel ---- */
+#detail{position:absolute;top:0;right:0;bottom:0;width:380px;max-width:100%;background:var(--panel);border-left:1px solid var(--border);box-shadow:-8px 0 24px var(--shadow);padding:16px;overflow-y:auto;transform:translateX(105%);transition:transform .25s;z-index:30}
+#detail.open{transform:none}
+.d-head{display:flex;align-items:center;gap:8px;margin-bottom:14px}
+.d-dot{width:12px;height:12px;border-radius:50%;flex-shrink:0}
+.d-title{font-size:15px !important;font-weight:700;background:transparent !important;border-color:transparent !important;padding:4px 6px !important}
+.d-title:hover,.d-title:focus{border-color:var(--border) !important}
+textarea.notes{min-height:180px;line-height:1.5;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px}
+.res-list,.conn-list{display:flex;flex-direction:column;gap:4px;margin-bottom:6px}
+.res-item,.conn-item{display:flex;align-items:center;justify-content:space-between;gap:6px;font-size:12px;padding:5px 8px;border-radius:6px;background:var(--btn2)}
+.res-item a{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.conn-item .name{cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.conn-item .name:hover{color:var(--accent)}
+.conn-item .lbl{color:var(--muted);font-size:10px;margin-right:4px}
+.conn-item .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px}
+.x{background:none;border:none;color:var(--faint);cursor:pointer;font-size:11px;padding:0 4px;flex-shrink:0}
+.x:hover{color:var(--danger)}
+.res-add,.inline-add{display:flex;gap:4px}
+.res-add input{flex:1;min-width:0}
+.inline-add select{flex:1;min-width:0}
+.d-section{border-top:1px solid var(--border);padding-top:12px;margin-top:12px}
+.d-section h4{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;display:flex;align-items:center;gap:6px}
+.d-section h4 .sw{width:10px;height:3px;border-radius:2px}
+.d-footer{display:flex;gap:8px;margin-top:16px}
+
+#stats{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.stat{background:var(--btn2);border-radius:8px;padding:8px}
+.stat b{display:block;font-size:16px}
+.stat span{font-size:10px;color:var(--muted)}
+
+#toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--panel);color:var(--text);border:1px solid var(--border);padding:9px 16px;border-radius:10px;font-size:12px;box-shadow:0 8px 24px var(--shadow);transition:transform .25s;z-index:100;pointer-events:none}
+#toast.show{transform:translateX(-50%) translateY(0)}
+
+@media (max-width:760px){
+  body{height:auto;min-height:100vh;overflow:auto}
+  #header{flex-direction:column;align-items:flex-start;padding:10px 16px}
+  #app{flex-direction:column;overflow:visible}
+  #sidebar{width:100%;border-right:none;border-bottom:1px solid var(--border);overflow:visible}
+  #graph-container{height:70vh;flex:none}
+  #detail{position:fixed;top:0}
+  #list-view{padding:16px}
+}
+</style>
+</head>
+<body>
+
+<div id="header">
+  <div class="h-left">
+    <h1>🎯 Knowledge</h1>
+    <span id="file-name" class="file-name">No file linked</span>
+  </div>
+  <div class="header-actions">
+    <a class="nav-link" href="literature.html">Literature</a>
+    <a class="nav-link" href="worklist.html">Worklist</a>
+    <button class="btn btn-secondary btn-sm" onclick="sync.open()">📂 Open</button>
+    <button class="btn btn-secondary btn-sm" onclick="sync.save()">💾 Save</button>
+    <button class="btn btn-secondary btn-sm" onclick="sync.exportCopy()">⬇ Export</button>
+    <button id="theme-btn" class="btn btn-secondary" onclick="toggleTheme()" aria-label="Toggle dark/light theme"></button>
+  </div>
+</div>
+<div id="relink-banner">
+  ⚠ Your prep file needs permission to resume auto-save.
+  <button class="btn btn-secondary btn-sm" onclick="sync.relink()">Restore auto-save</button>
+</div>
+
+<div id="app">
+  <aside id="sidebar">
+    <section>
+      <h3>Add concept</h3>
+      <div class="form-g"><input id="c-label" type="text" placeholder="e.g. Gradient Descent"></div>
+      <div class="form-g"><label>Domain</label><div id="domain-picker" class="pill-row"></div></div>
+      <div class="form-g"><input id="c-tags" type="text" placeholder="Tags, comma separated"></div>
+      <button class="btn btn-primary btn-full" onclick="addConcept()">+ Add concept</button>
+    </section>
+
+    <section>
+      <h3>Connect</h3>
+      <div class="form-g"><select id="l-from"></select></div>
+      <div class="form-g"><select id="l-type"></select></div>
+      <div class="form-g"><select id="l-to"></select></div>
+      <button class="btn btn-secondary btn-full" onclick="addLinkFromForm()">Connect</button>
+    </section>
+
+    <section>
+      <h3>Search</h3>
+      <input id="search" type="text" placeholder="Label, notes, tags…  (Ctrl/Cmd+F)">
+    </section>
+
+    <section>
+      <h3>Domains</h3>
+      <div id="domain-filter" class="pill-row"></div>
+    </section>
+
+    <section>
+      <h3>Stats</h3>
+      <div id="stats"></div>
+    </section>
+  </aside>
+
+  <main id="main">
+    <div id="tabs">
+      <button class="tab active" data-view="graph">Graph</button>
+      <button class="tab" data-view="list">List</button>
+      <div id="status-bar"><span id="save-dot"></span><span id="status-txt"></span><button class="link-btn" onclick="sync.openBackups()" title="Restore an automatic backup">↶ Backups</button></div>
+    </div>
+
+    <div id="graph-view" class="view active">
+      <div id="graph-container">
+        <svg id="graph-svg"></svg>
+        <div id="graph-tools"><button class="btn btn-secondary btn-sm" onclick="fitGraph()">⤢ Fit</button></div>
+        <div id="legend"></div>
+        <div id="empty-state"><div class="big">🎯</div><div>No concepts yet.</div><div>Add one in the sidebar, or open a prep file.</div></div>
+        <div id="link-popup">
+          <div id="lp-from-to"></div>
+          <select id="lp-label"></select>
+          <div class="lp-actions">
+            <button class="btn btn-primary btn-sm" onclick="saveLinkEdit()">Save</button>
+            <button class="btn btn-secondary btn-sm" onclick="reverseLink()">⇄ Reverse</button>
+            <button class="btn btn-danger btn-sm" onclick="deleteLink(activeLinkId)">Delete</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="list-view" class="view"></div>
+  </main>
+
+  <aside id="detail"></aside>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ============================================================
+// CONSTANTS
+// ============================================================
+const BUILTIN_DOMAINS = [
+  {name:'ML',             color:'#4361ee'},
+  {name:'Deep Learning',  color:'#7209b7'},
+  {name:'Stats',          color:'#06d6a0'},
+  {name:'Probability',    color:'#f77f00'},
+  {name:'Linear Algebra', color:'#4cc9f0'},
+  {name:'SQL',            color:'#f72585'},
+  {name:'Coding',         color:'#818cf8'},
+  {name:'System Design',  color:'#e9b300'},
+];
+const LINK_TYPES = {
+  prerequisite_of: 'is a prerequisite of',
+  related_to:      'is related to',
+  contrasts_with:  'contrasts with',
+};
+
+// ============================================================
+// STATE
+// ============================================================
+let G = emptyData();
+let sim = null, svgZoom = null, gMain = null;
+let d3Links = [];
+let DEG = new Map();
+let selectedId = null;
+let selDomain = 'ML';
+let filterDomain = null;
+let query = '';
+let currentView = 'graph';
+let activeLinkId = null;
+let notesTimer = null;
+
+function emptyData() {
+  const now = new Date().toISOString();
+  return { concepts:[], links:[], domains:BUILTIN_DOMAINS.map(d=>({...d})), metadata:{created:now, lastModified:now, version:1} };
+}
+
+// ============================================================
+// DATA
+// ============================================================
+function num(v) { return typeof v === 'number' && isFinite(v) ? v : undefined; }
+
+function migrateConcept(c) {
+  const out = {
+    id: String(c.id || uid()),
+    label: String(c.label || 'Untitled').trim() || 'Untitled',
+    domain: String(c.domain || 'ML'),
+    notes: String(c.notes || ''),
+    resources: (Array.isArray(c.resources) ? c.resources : [])
+      .filter(r => r && (r.url || r.title))
+      .map(r => ({title:String(r.title||''), url:String(r.url||'')})),
+    tags: uniqTags(Array.isArray(c.tags) ? c.tags : splitList(c.tags)),
+  };
+  if (c.updated) out.updated = String(c.updated);
+  ['x','y','fx','fy'].forEach(k => { const v = num(c[k]); if (v !== undefined) out[k] = v; });
+  return out;
+}
+
+function mergeDomains(list) {
+  const out = BUILTIN_DOMAINS.map(d=>({...d}));
+  (Array.isArray(list) ? list : []).forEach(d => {
+    if (!d || !d.name) return;
+    const ex = out.find(o => o.name === d.name);
+    if (ex) ex.color = d.color || ex.color;
+    else out.push({name:String(d.name), color:String(d.color || autoColor(d.name))});
+  });
+  return out;
+}
+
+function loadData(data) {
+  G.concepts = (data.concepts || []).map(migrateConcept);
+  const ids = new Set(G.concepts.map(c=>c.id));
+  G.links = (data.links || [])
+    .map(l => ({ id:String(l.id||uid()), source:String(sid(l)), target:String(tid(l)),
+                 label: LINK_TYPES[l.label] ? l.label : 'related_to', created: l.created || new Date().toISOString() }))
+    .filter(l => ids.has(l.source) && ids.has(l.target) && l.source !== l.target);
+  G.domains = mergeDomains(data.domains);
+  // Concepts may use domains missing from the list (e.g. hand-edited JSON)
+  G.concepts.forEach(c => { if (!G.domains.some(d=>d.name===c.domain)) G.domains.push({name:c.domain, color:autoColor(c.domain)}); });
+  G.metadata = {...emptyData().metadata, ...(data.metadata || {})};
+}
+
+// Replace everything on screen (from a file or a backup)
+function applyData(data) {
+  loadData(data);
+  if (selectedId && !byId(selectedId)) selectedId = null;
+  refreshAll();
+  setTimeout(fitGraph, 900);
+}
+
+// Is there a prerequisite path from → to? (used to reject cycles)
+function reaches(links, from, to) {
+  const seen = new Set(), stack = [from];
+  while (stack.length) {
+    const cur = stack.pop();
+    if (cur === to) return true;
+    if (seen.has(cur)) continue;
+    seen.add(cur);
+    links.forEach(l => { if (l.label === 'prerequisite_of' && sid(l) === cur) stack.push(tid(l)); });
+  }
+  return false;
+}
+
+function serialize() {
+  const r = v => v == null ? v : Math.round(v*10)/10;
+  return {
+    concepts: G.concepts.map(c => ({ id:c.id, label:c.label, domain:c.domain, notes:c.notes, resources:c.resources, tags:c.tags, updated:c.updated,
+                                     x:r(c.x), y:r(c.y), fx:r(c.fx), fy:r(c.fy) })),
+    links: G.links.map(l => ({ id:l.id, source:sid(l), target:tid(l), label:l.label, created:l.created })),
+    domains: G.domains,
+    metadata: G.metadata,
+  };
+}
+
+// ============================================================
+// PERSISTENCE (browser copy + linked knowledge.json — see createFileSync in common.js)
+// ============================================================
+const sync = createFileSync({
+  fileName:'knowledge.json', lsKey:'ml-prep', idbName:'ml-prep-handles', backupKey:'ml-prep-backups',
+  itemsKey:'concepts', itemsLabel:'concepts',
+  snapshot: serialize,
+  apply: applyData,
+  meta: () => G.metadata,
+  linkKey: l => [sid(l), tid(l)].sort().join('|'),          // one connection per pair
+  acceptLink: (links, l) => l.label !== 'prerequisite_of' || !reaches(links, tid(l), sid(l)),
+  mergeExtra: (cur, inc) => ({ domains: mergeDomains([...(inc.domains||[]), ...(cur.domains||[])]) }),
+});
+const touch = c => { c.updated = new Date().toISOString(); };
+
+// ============================================================
+// GRAPH
+// ============================================================
+function setupGraph() {
+  const svg = d3.select('#graph-svg');
+  const c = document.getElementById('graph-container');
+
+  svg.append('defs').html(['arrow','arrow-up','arrow-down'].map(id =>
+    `<marker id="${id}" viewBox="0 -5 10 10" refX="10" refY="0" markerWidth="6" markerHeight="6" orient="auto"><path class="${id}" d="M0,-5L10,0L0,5"/></marker>`
+  ).join(''));
+
+  svgZoom = d3.zoom().scaleExtent([.1, 4]).on('zoom', e => gMain.attr('transform', e.transform));
+  svg.call(svgZoom).on('dblclick.zoom', null);
+
+  svg.on('click', e => {
+    if (e.target === svg.node()) { closeDetail(); closeLinkPopup(); }
+  });
+
+  gMain = svg.append('g');
+  gMain.append('g').attr('id','g-links');
+  gMain.append('g').attr('id','g-link-hits');
+  gMain.append('g').attr('id','g-nodes');
+
+  sim = d3.forceSimulation()
+    .force('link', d3.forceLink().id(d=>d.id).distance(110).strength(.5))
+    .force('charge', d3.forceManyBody().strength(-380))
+    .force('center', d3.forceCenter(c.clientWidth/2, c.clientHeight/2))
+    .force('x', d3.forceX(c.clientWidth/2).strength(.04))
+    .force('y', d3.forceY(c.clientHeight/2).strength(.04))
+    .force('collide', d3.forceCollide().radius(d=>nodeR(d)+22).strength(.8))
+    .on('tick', ticked);
+}
+
+function recenter() {
+  const c = document.getElementById('graph-container');
+  if (!c.clientWidth) return;
+  const w = c.clientWidth/2, h = c.clientHeight/2;
+  sim.force('center').x(w).y(h); sim.force('x').x(w); sim.force('y').y(h);
+}
+
+function computeDegrees() {
+  DEG = new Map();
+  G.links.forEach(l => { [sid(l), tid(l)].forEach(id => DEG.set(id, (DEG.get(id)||0)+1)); });
+}
+function nodeR(d) { return Math.max(10, Math.min(26, 10 + (DEG.get(d.id)||0)*2.5)); }
+
+// Line endpoints, shortened at the target so arrowheads sit on the circle edge
+function ends(d) {
+  const s = d.source, t = d.target;
+  const dx = t.x - s.x, dy = t.y - s.y, dist = Math.hypot(dx, dy) || 1;
+  const rt = nodeR(t) + 3;
+  return [s.x, s.y, t.x - dx/dist*rt, t.y - dy/dist*rt];
+}
+
+function ticked() {
+  d3.selectAll('.link-line, .link-hit').each(function(d) {
+    if (typeof d.source !== 'object') return;
+    const e = ends(d);
+    this.setAttribute('x1', e[0]); this.setAttribute('y1', e[1]);
+    this.setAttribute('x2', e[2]); this.setAttribute('y2', e[3]);
+  });
+  d3.selectAll('.node-g').attr('transform', d=>`translate(${d.x},${d.y})`);
+}
+
+function renderGraph() {
+  document.getElementById('empty-state').style.display = G.concepts.length ? 'none' : 'flex';
+  computeDegrees();
+  d3Links = G.links.map(l => ({...l, source:sid(l), target:tid(l)}));
+
+  sim.nodes(G.concepts);
+  sim.force('link').links(d3Links);
+
+  d3.select('#g-links').selectAll('.link-line')
+    .data(d3Links, d=>d.id).join('line')
+    .attr('class', d=>'link-line '+d.label)
+    .attr('marker-end', d=>d.label==='prerequisite_of' ? 'url(#arrow)' : null);
+
+  d3.select('#g-link-hits').selectAll('.link-hit')
+    .data(d3Links, d=>d.id).join('line')
+    .attr('class','link-hit')
+    .on('click', (ev,d) => { ev.stopPropagation(); showLinkPopup(ev, d); });
+
+  const node = d3.select('#g-nodes').selectAll('.node-g')
+    .data(G.concepts, d=>d.id)
+    .join(enter => {
+      const g = enter.append('g').attr('class','node-g').call(dragBeh());
+      g.append('circle').attr('class','node-circle');
+      g.append('text').attr('class','node-label');
+      g.append('title');
+      return g;
+    });
+  node.attr('transform', d=>`translate(${d.x||0},${d.y||0})`)
+    .classed('pinned', d=>d.fx!=null)
+    .on('click', (ev,d) => { ev.stopPropagation(); closeLinkPopup(); selectConcept(d.id); });
+  node.select('.node-circle').attr('r', nodeR).attr('fill', d=>domainColor(d.domain));
+  node.select('.node-label').attr('dy', d=>nodeR(d)+13).text(d=>trunc(d.label, 24));
+  node.select('title').text(d=>`${d.label} · ${d.domain}`);
+
+  sim.alpha(.3).restart();
+  applyFilter();
+  if (selectedId) hlConcept(selectedId); else clearHL();
+}
+
+function dragBeh() {
+  return d3.drag()
+    // Only pin after an actual drag — d3-drag also fires start/end on a plain click
+    .on('start', (e,d) => { d._moved = false; })
+    .on('drag',  (e,d) => {
+      if (!d._moved) { d._moved = true; if(!e.active) sim.alphaTarget(.3).restart(); }
+      d.fx=e.x; d.fy=e.y;
+    })
+    .on('end',   (e,d) => {
+      if (!d._moved) return;
+      d._moved = false;
+      if(!e.active) sim.alphaTarget(0);
+      d.fx=e.x; d.fy=e.y;
+      d3.selectAll('.node-g').filter(n=>n.id===d.id).classed('pinned', true);
+      if (selectedId === d.id) openDetail(d.id);
+      sync.changed();
+    });
+}
+
+function fitGraph() {
+  const pts = G.concepts.filter(n=>n.x!=null);
+  const c = document.getElementById('graph-container');
+  if (!pts.length || !c.clientWidth) return;
+  const x0 = d3.min(pts,n=>n.x)-60, x1 = d3.max(pts,n=>n.x)+60;
+  const y0 = d3.min(pts,n=>n.y)-60, y1 = d3.max(pts,n=>n.y)+60;
+  const w = c.clientWidth, h = c.clientHeight;
+  const k = Math.min(1.6, Math.max(.1, Math.min(w/(x1-x0), h/(y1-y0))));
+  const t = d3.zoomIdentity.translate(w/2 - k*(x0+x1)/2, h/2 - k*(y0+y1)/2).scale(k);
+  d3.select('#graph-svg').transition().duration(500).call(svgZoom.transform, t);
+}
+
+// Transitive prerequisite chain: 'up' = everything you must know first, 'down' = everything it unlocks
+function chain(id, dir) {
+  const seen = new Set(), stack = [id];
+  while (stack.length) {
+    const cur = stack.pop();
+    G.links.forEach(l => {
+      if (l.label !== 'prerequisite_of') return;
+      const from = dir==='up' ? tid(l) : sid(l), to = dir==='up' ? sid(l) : tid(l);
+      if (from === cur && to !== id && !seen.has(to)) { seen.add(to); stack.push(to); }
+    });
+  }
+  return seen;
+}
+
+function hlConcept(id) {
+  const up = chain(id,'up'), down = chain(id,'down'), rel = new Set();
+  G.links.forEach(l => {
+    if (l.label === 'prerequisite_of') return;
+    if (sid(l)===id) rel.add(tid(l)); if (tid(l)===id) rel.add(sid(l));
+  });
+  const upS = new Set([id, ...up]), downS = new Set([id, ...down]);
+  d3.selectAll('.node-g')
+    .classed('hl-self', d=>d.id===id)
+    .classed('hl-up',   d=>up.has(d.id))
+    .classed('hl-down', d=>down.has(d.id) && !up.has(d.id))
+    .classed('hl-rel',  d=>rel.has(d.id) && !up.has(d.id) && !down.has(d.id))
+    .classed('faded',   d=>d.id!==id && !up.has(d.id) && !down.has(d.id) && !rel.has(d.id));
+  d3.selectAll('.link-line').each(function(d) {
+    const s = sid(d), t = tid(d), pre = d.label === 'prerequisite_of';
+    const isUp = pre && upS.has(s) && upS.has(t);
+    const isDown = pre && !isUp && downS.has(s) && downS.has(t);
+    const isRel = !pre && (s===id || t===id);
+    d3.select(this)
+      .classed('hl-up', isUp).classed('hl-down', isDown).classed('hl-rel', isRel)
+      .classed('faded', !isUp && !isDown && !isRel)
+      .attr('marker-end', pre ? `url(#${isUp?'arrow-up':isDown?'arrow-down':'arrow'})` : null);
+  });
+}
+
+function clearHL() {
+  d3.selectAll('.node-g').classed('hl-self hl-up hl-down hl-rel faded', false);
+  d3.selectAll('.link-line').classed('hl-up hl-down hl-rel faded', false)
+    .attr('marker-end', d=>d.label==='prerequisite_of' ? 'url(#arrow)' : null);
+}
+
+// ============================================================
+// FILTER (search + domain) — dims in graph, hides in list
+// ============================================================
+function matches(c) {
+  if (filterDomain && c.domain !== filterDomain) return false;
+  if (!query) return true;
+  const hay = [c.label, c.domain, c.notes, c.tags.join(' '), c.resources.map(r=>r.title+' '+r.url).join(' ')].join(' ').toLowerCase();
+  return query.split(/\s+/).every(q => hay.includes(q));
+}
+
+function applyFilter() {
+  const vis = new Set(G.concepts.filter(matches).map(c=>c.id));
+  d3.selectAll('.node-g').classed('dim', d=>!vis.has(d.id));
+  d3.selectAll('.link-line').classed('dim', d=>!vis.has(sid(d)) || !vis.has(tid(d)));
+}
+
+// ============================================================
+// CONCEPT OPERATIONS
+// ============================================================
+function addConcept() {
+  const inp = document.getElementById('c-label');
+  const label = inp.value.trim();
+  if (!label) { toast('Enter a concept name first'); inp.focus(); return; }
+  const dup = G.concepts.find(c => tkey(c.label) === tkey(label));
+  if (dup) { toast('That concept already exists'); selectConcept(dup.id); return; }
+
+  const svg = document.getElementById('graph-svg');
+  const [cx, cy] = d3.zoomTransform(svg).invert([svg.clientWidth/2 || 400, svg.clientHeight/2 || 300]);
+  const c = migrateConcept({ id:uid(), label, domain:selDomain, tags:splitList(document.getElementById('c-tags').value), updated:new Date().toISOString() });
+  c.x = cx + (Math.random()-.5)*80; c.y = cy + (Math.random()-.5)*80;
+  G.concepts.push(c);
+  inp.value = ''; document.getElementById('c-tags').value = '';
+  refreshAll(); sync.changed();
+  selectConcept(c.id);
+  toast(`Added “${label}”`);
+}
+
+async function deleteConcept(id) {
+  const c = byId(id); if (!c) return;
+  const k = G.links.filter(l=>sid(l)===id || tid(l)===id).length;
+  const extra = [k && `${k} connection${k===1?'':'s'}`, c.notes.trim() && 'its notes', c.resources.length && `${c.resources.length} resource${c.resources.length===1?'':'s'}`].filter(Boolean);
+  if (!await confirmDelete(`Delete “${c.label}”?`, extra.length ? `This also deletes ${extra.length > 1 ? extra.slice(0,-1).join(', ') + ' and ' + extra.at(-1) : extra[0]}.` : '')) return;
+  G.concepts = G.concepts.filter(x=>x.id!==id);
+  G.links = G.links.filter(l=>sid(l)!==id && tid(l)!==id);
+  closeDetail();
+  refreshAll(); sync.changed();
+  toast('Concept deleted');
+}
+
+function updateField(field, val) {
+  const c = byId(selectedId); if (!c) return;
+  if (field === 'label') {
+    val = val.trim();
+    if (!val) { openDetail(c.id); return; }
+    const dup = G.concepts.find(x => x.id!==c.id && tkey(x.label)===tkey(val));
+    if (dup) { toast('Another concept already has that name'); openDetail(c.id); return; }
+    c.label = val;
+  } else if (field === 'tags') c.tags = uniqTags(splitList(val));
+  else if (field === 'domain') c.domain = val;
+  touch(c);
+  refreshAll(); sync.changed();
+}
+
+function notesChanged(v) {
+  const c = byId(selectedId); if (!c) return;
+  c.notes = v; touch(c);
+  setStatus('Editing notes…', true);
+  clearTimeout(notesTimer);
+  notesTimer = setTimeout(flushNotes, 600);
+}
+function flushNotes() {
+  if (!notesTimer) return;
+  clearTimeout(notesTimer); notesTimer = null;
+  sync.changed(); updateStats();
+  if (currentView === 'list') renderList();
+}
+
+function addResource() {
+  const c = byId(selectedId); if (!c) return;
+  const title = document.getElementById('r-title').value.trim();
+  const url = document.getElementById('r-url').value.trim();
+  if (!title && !url) { toast('Enter a title or URL'); return; }
+  c.resources.push({title, url}); touch(c);
+  flushNotes(); openDetail(c.id); renderList(); updateStats(); sync.changed();
+}
+async function removeResource(i) {
+  const c = byId(selectedId); if (!c || !c.resources[i]) return;
+  const r = c.resources[i];
+  if (!await confirmDelete('Remove this resource?', r.title || r.url)) return;
+  c.resources.splice(i, 1); touch(c);
+  flushNotes(); openDetail(c.id); renderList(); updateStats(); sync.changed();
+}
+
+function togglePin() {
+  const c = byId(selectedId); if (!c) return;
+  if (c.fx != null) { c.fx = null; c.fy = null; } else { c.fx = c.x; c.fy = c.y; }
+  flushNotes(); renderGraph(); openDetail(c.id); sync.changed();
+}
+
+// ============================================================
+// LINK OPERATIONS
+// ============================================================
+function linkError(s, t, label, ignoreId) {
+  if (!s || !t) return 'Pick two concepts';
+  if (s === t) return 'A concept can’t connect to itself';
+  const others = G.links.filter(l => l.id !== ignoreId);
+  if (others.some(l => (sid(l)===s && tid(l)===t) || (sid(l)===t && tid(l)===s))) return 'Those concepts are already connected';
+  if (label === 'prerequisite_of' && chain(s,'up').has(t)) return 'That would create a prerequisite cycle';
+  return null;
+}
+
+function addLink(s, t, label) {
+  const err = linkError(s, t, label);
+  if (err) { toast(err); return false; }
+  G.links.push({ id:uid(), source:s, target:t, label, created:new Date().toISOString() });
+  flushNotes(); refreshAll(); sync.changed();
+  return true;
+}
+
+function addLinkFromForm() {
+  const s = document.getElementById('l-from').value, t = document.getElementById('l-to').value;
+  if (addLink(s, t, document.getElementById('l-type').value)) toast('Connected');
+}
+
+function addPrereq() {
+  const s = document.getElementById('d-prereq').value;
+  if (addLink(s, selectedId, 'prerequisite_of')) toast('Prerequisite added');
+}
+
+async function deleteLink(id) {
+  const l = G.links.find(l=>l.id===id); if (!l) return;
+  if (!await confirmDelete('Delete this connection?', `${byId(sid(l))?.label} ${LINK_TYPES[l.label]} ${byId(tid(l))?.label}`)) return;
+  G.links = G.links.filter(l=>l.id!==id);
+  closeLinkPopup();
+  flushNotes(); refreshAll(); sync.changed();
+  toast('Connection deleted');
+}
+
+// ============================================================
+// LINK POPUP
+// ============================================================
+function showLinkPopup(ev, d) {
+  const link = G.links.find(l=>l.id===d.id);
+  if (!link) return;
+  activeLinkId = link.id;
+  const s = byId(sid(link)), t = byId(tid(link));
+  const ft = document.getElementById('lp-from-to');
+  ft.innerHTML = `<strong>${esc(s?.label)}</strong> → <strong>${esc(t?.label)}</strong>`;
+  document.getElementById('lp-label').value = link.label;
+
+  const popup = document.getElementById('link-popup');
+  const gc = document.getElementById('graph-container').getBoundingClientRect();
+  let left = ev.clientX - gc.left + 12, top = ev.clientY - gc.top + 12;
+  if (left + 250 > gc.width)  left = Math.max(8, ev.clientX - gc.left - 252);
+  if (top  + 130 > gc.height) top  = Math.max(8, ev.clientY - gc.top  - 132);
+  popup.style.left = left + 'px'; popup.style.top = top + 'px';
+  popup.classList.add('open');
+}
+
+function closeLinkPopup() {
+  document.getElementById('link-popup').classList.remove('open');
+  activeLinkId = null;
+}
+
+function saveLinkEdit() {
+  const link = G.links.find(l=>l.id===activeLinkId); if (!link) return;
+  const label = document.getElementById('lp-label').value;
+  const err = linkError(sid(link), tid(link), label, link.id);
+  if (err) { toast(err); return; }
+  link.label = label;
+  closeLinkPopup(); flushNotes(); refreshAll(); sync.changed();
+  toast('Connection updated');
+}
+
+function reverseLink() {
+  const link = G.links.find(l=>l.id===activeLinkId); if (!link) return;
+  const s = sid(link), t = tid(link);
+  const err = linkError(t, s, document.getElementById('lp-label').value, link.id);
+  if (err) { toast(err); return; }
+  link.source = t; link.target = s;
+  link.label = document.getElementById('lp-label').value;
+  closeLinkPopup(); flushNotes(); refreshAll(); sync.changed();
+  toast('Direction reversed');
+}
+
+// ============================================================
+// SELECTION & DETAIL PANEL
+// ============================================================
+function selectConcept(id) {
+  flushNotes();
+  selectedId = id;
+  hlConcept(id);
+  openDetail(id);
+  if (currentView === 'list') renderList();
+}
+
+function connItem(l, otherId, showLabel) {
+  const o = byId(otherId); if (!o) return '';
+  return `<div class="conn-item">
+    <span class="name" onclick="selectConcept('${escAttr(o.id)}')"><span class="dot" style="background:${esc(domainColor(o.domain))}"></span>${showLabel?`<span class="lbl">${esc(l.label.replace('_',' '))}</span>`:''}${esc(o.label)}</span>
+    <button class="x" title="Remove connection" onclick="deleteLink('${escAttr(l.id)}')">✕</button>
+  </div>`;
+}
+
+function openDetail(id) {
+  const c = byId(id);
+  const el = document.getElementById('detail');
+  if (!c) { closeDetail(); return; }
+  const prereqs = G.links.filter(l=>l.label==='prerequisite_of' && tid(l)===id);
+  const unlocks = G.links.filter(l=>l.label==='prerequisite_of' && sid(l)===id);
+  const other   = G.links.filter(l=>l.label!=='prerequisite_of' && (sid(l)===id || tid(l)===id));
+  const upAll = chain(id,'up'), downAll = chain(id,'down');
+  const candidates = G.concepts.filter(x => x.id!==id && !prereqs.some(l=>sid(l)===x.id)).sort((a,b)=>byAlpha(a.label,b.label));
+
+  el.innerHTML = `
+    <div class="d-head">
+      <span class="d-dot" style="background:${esc(domainColor(c.domain))}"></span>
+      <input id="d-label" class="d-title" type="text" value="${esc(c.label)}" onchange="updateField('label', this.value)" aria-label="Concept name">
+      <button class="icon-btn" onclick="closeDetail()" aria-label="Close">✕</button>
+    </div>
+    <div class="form-g"><label>Domain</label>
+      <select onchange="updateField('domain', this.value)">${G.domains.map(d=>`<option value="${esc(d.name)}" ${d.name===c.domain?'selected':''}>${esc(d.name)}</option>`).join('')}</select></div>
+    <div class="form-g"><label>Tags</label>
+      <input type="text" value="${esc(c.tags.join(', '))}" placeholder="comma separated" onchange="updateField('tags', this.value)"></div>
+    <div class="form-g"><label>Notes</label>
+      <textarea id="d-notes" class="notes" oninput="notesChanged(this.value)" placeholder="Definition, key formulas, intuition, pitfalls, typical interview questions…">${esc(c.notes)}</textarea></div>
+
+    <div class="d-section">
+      <h4>Resources (${c.resources.length})</h4>
+      <div class="res-list">${c.resources.map((r,i)=>`<div class="res-item">
+          <a href="${esc(safeUrl(r.url))}" target="_blank" rel="noopener noreferrer" title="${esc(r.url)}">${esc(r.title || r.url)}</a>
+          <button class="x" title="Remove" onclick="removeResource(${i})">✕</button></div>`).join('') || '<div class="muted">None yet</div>'}</div>
+      <div class="res-add">
+        <input id="r-title" type="text" placeholder="Title">
+        <input id="r-url" type="text" placeholder="URL" onkeydown="if(event.key==='Enter')addResource()">
+        <button class="btn btn-secondary btn-sm" onclick="addResource()" aria-label="Add resource">+</button>
+      </div>
+    </div>
+
+    <div class="d-section">
+      <h4><span class="sw" style="background:var(--up)"></span>Prerequisites (${prereqs.length})</h4>
+      <div class="conn-list">${prereqs.map(l=>connItem(l, sid(l))).join('') || '<div class="muted">None — this is a starting point</div>'}</div>
+      ${candidates.length ? `<div class="inline-add">
+        <select id="d-prereq">${candidates.map(x=>`<option value="${esc(x.id)}">${esc(x.label)}</option>`).join('')}</select>
+        <button class="btn btn-secondary btn-sm" onclick="addPrereq()">+ Prereq</button></div>` : ''}
+      ${upAll.size > prereqs.length ? `<div class="muted" style="margin-top:6px">${upAll.size} concepts in the full prerequisite chain (highlighted in the graph)</div>` : ''}
+    </div>
+
+    <div class="d-section">
+      <h4><span class="sw" style="background:var(--down)"></span>Unlocks (${unlocks.length})</h4>
+      <div class="conn-list">${unlocks.map(l=>connItem(l, tid(l))).join('') || '<div class="muted">Nothing yet</div>'}</div>
+      ${downAll.size > unlocks.length ? `<div class="muted">${downAll.size} concepts downstream in total</div>` : ''}
+    </div>
+
+    ${other.length ? `<div class="d-section">
+      <h4><span class="sw" style="background:var(--accent)"></span>Related / contrasts (${other.length})</h4>
+      <div class="conn-list">${other.map(l=>connItem(l, sid(l)===id ? tid(l) : sid(l), true)).join('')}</div>
+    </div>` : ''}
+
+    <div class="d-footer">
+      <button class="btn btn-secondary btn-sm" onclick="togglePin()">${c.fx!=null ? '📌 Unpin' : '📌 Pin'}</button>
+      <button class="btn btn-danger btn-sm" onclick="deleteConcept('${escAttr(c.id)}')">Delete concept</button>
+    </div>`;
+  el.classList.add('open');
+}
+
+function closeDetail() {
+  flushNotes();
+  selectedId = null;
+  document.getElementById('detail').classList.remove('open');
+  clearHL();
+  if (currentView === 'list') renderList();
+}
+
+// ============================================================
+// SIDEBAR / LIST / STATS
+// ============================================================
+function renderDomainPicker() {
+  if (!G.domains.some(d=>d.name===selDomain)) selDomain = G.domains[0]?.name || 'ML';
+  document.getElementById('domain-picker').innerHTML =
+    G.domains.map(d => `<span class="pill ${d.name===selDomain?'sel':''}" onclick="pickDomain('${escAttr(d.name)}')"><span class="dot" style="background:${esc(d.color)}"></span>${esc(d.name)}</span>`).join('')
+    + `<span class="pill" onclick="newDomain()" title="Add a custom domain">+ New</span>`;
+}
+function pickDomain(name) { selDomain = name; renderDomainPicker(); }
+function newDomain() {
+  const name = (prompt('New domain name (e.g. Causal Inference, A/B Testing):') || '').trim();
+  if (!name) return;
+  if (!G.domains.some(d=>d.name.toLowerCase()===name.toLowerCase())) { G.domains.push({name, color:autoColor(name)}); sync.changed(); }
+  selDomain = G.domains.find(d=>d.name.toLowerCase()===name.toLowerCase()).name;
+  refreshAll();
+}
+
+function renderDomainFilter() {
+  const counts = d3.rollup(G.concepts, v=>v.length, c=>c.domain);
+  const used = G.domains.filter(d => counts.get(d.name));
+  document.getElementById('domain-filter').innerHTML =
+    `<span class="pill ${!filterDomain?'sel':''}" onclick="setFilterDomain(null)">All<span class="n">${G.concepts.length}</span></span>`
+    + used.map(d => `<span class="pill ${filterDomain===d.name?'sel':''}" onclick="setFilterDomain('${escAttr(d.name)}')"><span class="dot" style="background:${esc(d.color)}"></span>${esc(d.name)}<span class="n">${counts.get(d.name)}</span></span>`).join('');
+}
+function setFilterDomain(name) {
+  filterDomain = filterDomain === name ? null : name;
+  renderDomainFilter(); applyFilter(); renderList();
+}
+
+function refreshSelects() {
+  const opts = G.concepts.slice().sort((a,b)=>byAlpha(a.label,b.label))
+    .map(c=>`<option value="${esc(c.id)}">${esc(c.label)}</option>`).join('');
+  ['l-from','l-to'].forEach((id, i) => {
+    const sel = document.getElementById(id), prev = sel.value;
+    sel.innerHTML = `<option value="">${i ? 'To concept…' : 'From concept…'}</option>` + opts;
+    if (byId(prev)) sel.value = prev;
+  });
+}
+
+function renderList() {
+  const el = document.getElementById('list-view');
+  if (!G.concepts.length) { el.innerHTML = '<div class="list-empty">No concepts yet — add one in the sidebar.</div>'; return; }
+  const items = G.concepts.filter(matches);
+  if (!items.length) { el.innerHTML = '<div class="list-empty">No concepts match the current search / domain filter.</div>'; return; }
+  const groups = d3.group(items, c=>c.domain);
+  const order = G.domains.map(d=>d.name).filter(n=>groups.has(n));
+  el.innerHTML = order.map(dn => {
+    const list = groups.get(dn).slice().sort((a,b)=>byAlpha(a.label,b.label));
+    return `<section class="dom-group">
+      <h2><span class="dot" style="background:${esc(domainColor(dn))}"></span>${esc(dn)}<span class="count">${list.length}</span></h2>
+      <div class="cards">${list.map(card).join('')}</div>
+    </section>`;
+  }).join('');
+}
+
+function card(c) {
+  const pre = G.links.filter(l=>l.label==='prerequisite_of' && tid(l)===c.id).length;
+  const unl = G.links.filter(l=>l.label==='prerequisite_of' && sid(l)===c.id).length;
+  return `<div class="card ${c.id===selectedId?'sel':''}" onclick="selectConcept('${escAttr(c.id)}')">
+    <div class="card-title">${esc(c.label)}</div>
+    <div class="card-meta">${pre} prereq · ${unl} unlocks · ${c.resources.length} resource${c.resources.length===1?'':'s'}</div>
+    ${c.notes.trim() ? `<div class="card-notes">${esc(c.notes.trim().slice(0, 300))}</div>` : '<div class="card-notes"><em>No notes yet</em></div>'}
+    ${c.tags.length ? `<div class="tags">${c.tags.map(t=>`<span class="tag">${esc(t)}</span>`).join('')}</div>` : ''}
+  </div>`;
+}
+
+function updateStats() {
+  const withNotes = G.concepts.filter(c=>c.notes.trim()).length;
+  const res = d3.sum(G.concepts, c=>c.resources.length);
+  const isolated = G.concepts.filter(c=>!DEG.get(c.id)).length;
+  const s = [[G.concepts.length,'concepts'],[G.links.length,'connections'],[withNotes,'with notes'],[res,'resources'],[isolated,'unconnected'],[G.domains.filter(d=>G.concepts.some(c=>c.domain===d.name)).length,'domains']];
+  document.getElementById('stats').innerHTML = s.map(([n,l])=>`<div class="stat"><b>${n}</b><span>${l}</span></div>`).join('');
+}
+
+function renderLegend() {
+  const used = G.domains.filter(d=>G.concepts.some(c=>c.domain===d.name));
+  const line = dash => `<svg width="22" height="6"><line x1="0" y1="3" x2="22" y2="3" ${dash?`stroke-dasharray="${dash}"`:''}/></svg>`;
+  document.getElementById('legend').innerHTML = (used.length ? `<div class="row">${used.map(d=>`<span><span class="dot" style="background:${esc(d.color)}"></span>${esc(d.name)}</span>`).join('')}</div>` : '')
+    + `<div class="row"><span>${line('')}→ prerequisite of</span><span>${line('6 4')}related</span><span>${line('2 4')}contrasts</span></div>`
+    + `<div class="row"><span style="color:var(--up)">● needed first</span><span style="color:var(--down)">● unlocks</span></div>`;
+}
+
+function refreshAll() {
+  renderDomainPicker();
+  renderDomainFilter();
+  refreshSelects();
+  renderGraph();
+  renderList();
+  updateStats();
+  renderLegend();
+  if (selectedId) openDetail(selectedId);
+}
+
+function switchView(v) {
+  currentView = v;
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active', t.dataset.view===v));
+  document.getElementById('graph-view').classList.toggle('active', v==='graph');
+  document.getElementById('list-view').classList.toggle('active', v==='list');
+  closeLinkPopup();
+  if (v === 'graph') { recenter(); sim.alpha(.1).restart(); }
+  else renderList();
+}
+
+// ============================================================
+// UI WIRING
+// ============================================================
+function setupUI() {
+  document.getElementById('l-type').innerHTML = Object.entries(LINK_TYPES).map(([k,v])=>`<option value="${k}">${v}</option>`).join('');
+  document.getElementById('lp-label').innerHTML = Object.entries(LINK_TYPES).map(([k,v])=>`<option value="${k}">${v}</option>`).join('');
+  document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => switchView(t.dataset.view)));
+  document.getElementById('c-label').addEventListener('keydown', e => { if (e.key==='Enter') addConcept(); });
+  document.getElementById('c-tags').addEventListener('keydown', e => { if (e.key==='Enter') addConcept(); });
+  document.getElementById('search').addEventListener('input', e => {
+    query = e.target.value.trim().toLowerCase();
+    applyFilter(); renderList();
+  });
+  document.getElementById('lp-label').addEventListener('keydown', e => { if (e.key==='Enter') saveLinkEdit(); });
+  document.addEventListener('keydown', e => {
+    const mod = e.metaKey || e.ctrlKey;
+    if (mod && e.key.toLowerCase()==='s') { e.preventDefault(); flushNotes(); sync.save(); }
+    else if (mod && e.key.toLowerCase()==='f') { e.preventDefault(); document.getElementById('search').focus(); }
+    else if (e.key==='Escape') { closeLinkPopup(); if (selectedId) closeDetail(); }
+  });
+  window.addEventListener('resize', () => { recenter(); sim.alpha(.1).restart(); });
+  window.addEventListener('beforeunload', () => { if (notesTimer) sync.saveLocal(); });
+}
+
+// ============================================================
+// HELPERS
+// ============================================================
+function byId(id) { return G.concepts.find(c=>c.id===id); }
+function domainColor(name) { return G.domains.find(d=>d.name===name)?.color || autoColor(name); }
+function autoColor(name) {
+  let h = 0; for (const ch of String(name)) h = (h*31 + ch.charCodeAt(0)) % 360;
+  return `hsl(${h},65%,55%)`;
+}
+function trunc(s, n) { return s.length > n ? s.slice(0, n-1) + '…' : s; }
+
+// ============================================================
+// INIT
+// ============================================================
+function init() {
+  const local = sync.loadLocal();
+  if (local) loadData(local);
+  setupGraph();
+  setupUI();
+  refreshAll();
+  setStatus('Ready · Ctrl/Cmd+S to save', false);
+  if (G.concepts.length) setTimeout(fitGraph, 900);
+  sync.start();
+}
+
+init();
+</script>
+</body>
+</html>
