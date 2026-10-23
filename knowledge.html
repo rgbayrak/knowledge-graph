@@ -108,17 +108,25 @@ label{display:block;font-size:10px;font-weight:700;text-transform:uppercase;lett
 .link-line.hl-down{stroke:var(--down);stroke-width:2.4}
 .link-line.hl-rel{stroke:var(--accent);stroke-width:2.2}
 .link-line.faded,.link-line.dim{opacity:.08}
-.link-hit{stroke:transparent;stroke-width:12;cursor:pointer}
+.link-hit{stroke:transparent;stroke-width:12;fill:none;cursor:pointer}
 path.arrow{fill:var(--link)} path.arrow-up{fill:var(--up)} path.arrow-down{fill:var(--down)}
 .node-g{cursor:pointer;transition:opacity .2s}
-.node-circle{stroke:var(--bg);stroke-width:2;fill-opacity:.9}
-.node-g.pinned .node-circle{stroke:var(--text);stroke-dasharray:3 2;stroke-width:1.5}
-.node-g.hl-self .node-circle{stroke:var(--text);stroke-width:3;stroke-dasharray:none}
-.node-g.hl-up .node-circle{stroke:var(--up);stroke-width:3;stroke-dasharray:none}
-.node-g.hl-down .node-circle{stroke:var(--down);stroke-width:3;stroke-dasharray:none}
-.node-g.hl-rel .node-circle{stroke:var(--accent);stroke-width:3;stroke-dasharray:none}
+.node-box{stroke-width:1.5}
+.node-g:hover .node-box{stroke-width:2.5}
+.node-g.hl-self .node-box{stroke:var(--text);stroke-width:3}
+.node-g.hl-up .node-box{stroke:var(--up);stroke-width:3}
+.node-g.hl-down .node-box{stroke:var(--down);stroke-width:3}
+.node-g.hl-rel .node-box{stroke:var(--accent);stroke-width:3}
+.chart-bg{fill:var(--panel);stroke:var(--border);stroke-width:1}
+.chart-title{fill:var(--muted);font-size:12px;font-weight:600;cursor:pointer}
+.chart-title:hover{fill:var(--text)}
+.node-sub{fill:var(--muted);font-size:10px;text-anchor:middle;dominant-baseline:central;pointer-events:none}
+.node-g.ghost .node-box{stroke-dasharray:4 3}
+.node-g.ghost .node-label{font-weight:500}
+.chart.hidden,.node-g.hidden,.link-line.hidden,.link-hit.hidden{display:none}
+#graph-tools select{width:auto;max-width:220px;padding:5px 8px}
 .node-g.faded,.node-g.dim{opacity:.15}
-.node-label{fill:var(--text);font-size:11px;text-anchor:middle;pointer-events:none;paint-order:stroke;stroke:var(--bg);stroke-width:3px;stroke-linejoin:round}
+.node-label{fill:var(--text);font-size:12px;font-weight:600;text-anchor:middle;dominant-baseline:central;pointer-events:none}
 
 #legend{position:absolute;left:12px;bottom:12px;background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:8px 10px;font-size:11px;color:var(--muted);display:flex;flex-direction:column;gap:4px;max-width:calc(100% - 24px);opacity:.95}
 #legend .row{display:flex;flex-wrap:wrap;gap:4px 12px;align-items:center}
@@ -259,7 +267,12 @@ textarea.notes{min-height:180px;line-height:1.5;font-family:ui-monospace,SFMono-
     <div id="graph-view" class="view active">
       <div id="graph-container">
         <svg id="graph-svg"></svg>
-        <div id="graph-tools"><button class="btn btn-secondary btn-sm" onclick="fitGraph()">⤢ Fit</button></div>
+        <div id="graph-tools">
+          <button class="btn btn-secondary btn-sm" onclick="stepChart(-1)" title="Previous chart" aria-label="Previous chart">◀</button>
+          <select id="chart-pick" onchange="pickChart(this.value)" aria-label="Chart"></select>
+          <button class="btn btn-secondary btn-sm" onclick="stepChart(1)" title="Next chart" aria-label="Next chart">▶</button>
+          <button class="btn btn-secondary btn-sm" onclick="fitGraph()">⤢ Fit</button>
+        </div>
         <div id="legend"></div>
         <div id="empty-state"><div class="big">🎯</div><div>No concepts yet.</div><div>Add one in the sidebar, or open a prep file.</div></div>
         <div id="link-popup">
@@ -306,7 +319,8 @@ const LINK_TYPES = {
 // STATE
 // ============================================================
 let G = emptyData();
-let sim = null, svgZoom = null, gMain = null;
+let svgZoom = null, gMain = null, fitted = false, CHARTS = [], ROUTES = new Map(), GHOSTS = [];
+let pickedChart = '';   // '' = show all charts
 let d3Links = [];
 let DEG = new Map();
 let selectedId = null;
@@ -319,7 +333,7 @@ let notesTimer = null;
 
 function emptyData() {
   const now = new Date().toISOString();
-  return { concepts:[], links:[], domains:BUILTIN_DOMAINS.map(d=>({...d})), metadata:{created:now, lastModified:now, version:1} };
+  return { concepts:[], links:[], domains:BUILTIN_DOMAINS.map(d=>({...d})), charts:[], metadata:{created:now, lastModified:now, version:1} };
 }
 
 // ============================================================
@@ -338,8 +352,9 @@ function migrateConcept(c) {
       .map(r => ({title:String(r.title||''), url:String(r.url||'')})),
     tags: uniqTags(Array.isArray(c.tags) ? c.tags : splitList(c.tags)),
   };
+  if (c.chart && String(c.chart).trim()) out.chart = String(c.chart).trim();
   if (c.updated) out.updated = String(c.updated);
-  ['x','y','fx','fy'].forEach(k => { const v = num(c[k]); if (v !== undefined) out[k] = v; });
+  ['x','y'].forEach(k => { const v = num(c[k]); if (v !== undefined) out[k] = v; });
   return out;
 }
 
@@ -362,6 +377,7 @@ function loadData(data) {
                  label: LINK_TYPES[l.label] ? l.label : 'related_to', created: l.created || new Date().toISOString() }))
     .filter(l => ids.has(l.source) && ids.has(l.target) && l.source !== l.target);
   G.domains = mergeDomains(data.domains);
+  G.charts = Array.isArray(data.charts) ? [...new Set(data.charts.map(String))] : [];
   // Concepts may use domains missing from the list (e.g. hand-edited JSON)
   G.concepts.forEach(c => { if (!G.domains.some(d=>d.name===c.domain)) G.domains.push({name:c.domain, color:autoColor(c.domain)}); });
   G.metadata = {...emptyData().metadata, ...(data.metadata || {})};
@@ -372,7 +388,7 @@ function applyData(data) {
   loadData(data);
   if (selectedId && !byId(selectedId)) selectedId = null;
   refreshAll();
-  setTimeout(fitGraph, 900);
+  fitGraph(true);
 }
 
 // Is there a prerequisite path from → to? (used to reject cycles)
@@ -391,10 +407,11 @@ function reaches(links, from, to) {
 function serialize() {
   const r = v => v == null ? v : Math.round(v*10)/10;
   return {
-    concepts: G.concepts.map(c => ({ id:c.id, label:c.label, domain:c.domain, notes:c.notes, resources:c.resources, tags:c.tags, updated:c.updated,
-                                     x:r(c.x), y:r(c.y), fx:r(c.fx), fy:r(c.fy) })),
+    concepts: G.concepts.map(c => ({ id:c.id, label:c.label, domain:c.domain, chart:c.chart, notes:c.notes, resources:c.resources, tags:c.tags, updated:c.updated,
+                                     x:r(c.x), y:r(c.y) })),
     links: G.links.map(l => ({ id:l.id, source:sid(l), target:tid(l), label:l.label, created:l.created })),
     domains: G.domains,
+    charts: G.charts,
     metadata: G.metadata,
   };
 }
@@ -410,7 +427,8 @@ const sync = createFileSync({
   meta: () => G.metadata,
   linkKey: l => [sid(l), tid(l)].sort().join('|'),          // one connection per pair
   acceptLink: (links, l) => l.label !== 'prerequisite_of' || !reaches(links, tid(l), sid(l)),
-  mergeExtra: (cur, inc) => ({ domains: mergeDomains([...(inc.domains||[]), ...(cur.domains||[])]) }),
+  mergeExtra: (cur, inc) => ({ domains: mergeDomains([...(inc.domains||[]), ...(cur.domains||[])]),
+                             charts: [...new Set([...(cur.charts||[]), ...(inc.charts||[])])] }),
 });
 const touch = c => { c.updated = new Date().toISOString(); };
 
@@ -429,123 +447,285 @@ function setupGraph() {
   svg.call(svgZoom).on('dblclick.zoom', null);
 
   svg.on('click', e => {
-    if (e.target === svg.node()) { closeDetail(); closeLinkPopup(); }
+    if (e.target === svg.node() || e.target.classList.contains('chart-bg')) { closeDetail(); closeLinkPopup(); }
   });
 
   gMain = svg.append('g');
+  gMain.append('g').attr('id','g-charts');
   gMain.append('g').attr('id','g-links');
   gMain.append('g').attr('id','g-link-hits');
   gMain.append('g').attr('id','g-nodes');
 
-  sim = d3.forceSimulation()
-    .force('link', d3.forceLink().id(d=>d.id).distance(110).strength(.5))
-    .force('charge', d3.forceManyBody().strength(-380))
-    .force('center', d3.forceCenter(c.clientWidth/2, c.clientHeight/2))
-    .force('x', d3.forceX(c.clientWidth/2).strength(.04))
-    .force('y', d3.forceY(c.clientHeight/2).strength(.04))
-    .force('collide', d3.forceCollide().radius(d=>nodeR(d)+22).strength(.8))
-    .on('tick', ticked);
-}
-
-function recenter() {
-  const c = document.getElementById('graph-container');
-  if (!c.clientWidth) return;
-  const w = c.clientWidth/2, h = c.clientHeight/2;
-  sim.force('center').x(w).y(h); sim.force('x').x(w); sim.force('y').y(h);
 }
 
 function computeDegrees() {
   DEG = new Map();
   G.links.forEach(l => { [sid(l), tid(l)].forEach(id => DEG.set(id, (DEG.get(id)||0)+1)); });
 }
-function nodeR(d) { return Math.max(10, Math.min(26, 10 + (DEG.get(d.id)||0)*2.5)); }
+// ---- Flowchart layout ----
+// Every group of connected concepts becomes its own top-down flowchart: prerequisites on top,
+// one row per longest-prerequisite-chain depth. Unconnected concepts share a "Standalone" chart.
+// Boxes are sized to their label and placed side by side, so nothing overlaps and nothing moves.
+const BOX_H = 34, BOX_GAP = 24, ROW_H = 92, PAD = 28, TITLE_H = 30, CHART_GAP = 48, LABEL_MAX = 34;
+let measureCtx = null;
+function textW(t) {
+  measureCtx ||= document.createElement('canvas').getContext('2d');
+  measureCtx.font = `600 12px ${getComputedStyle(document.body).fontFamily}`;
+  return Math.ceil(measureCtx.measureText(t).width);
+}
+function boxW(c) { return Math.max(90, textW(trunc(c.label, LABEL_MAX)) + 28); }
+function ghostW(g) { return Math.max(90, textW(trunc(g.label, LABEL_MAX)), Math.ceil(textW(g.home) * .85) + 14) + 28; }
 
-// Line endpoints, shortened at the target so arrowheads sit on the circle edge
-function ends(d) {
-  const s = d.source, t = d.target;
-  const dx = t.x - s.x, dy = t.y - s.y, dist = Math.hypot(dx, dy) || 1;
-  const rt = nodeR(t) + 3;
-  return [s.x, s.y, t.x - dx/dist*rt, t.y - dy/dist*rt];
+// Which flowchart a concept belongs to: its own `chart` field, else its domain.
+// Order follows G.charts (saved in the JSON); charts not listed there come after, A–Z.
+const chartOf = c => c.chart || c.domain;
+function chartNames() {
+  const used = new Set(G.concepts.map(chartOf));
+  const listed = G.charts.filter(n => used.has(n));
+  return [...listed, ...[...used].filter(n => !listed.includes(n)).sort(byAlpha)];
 }
 
-function ticked() {
-  d3.selectAll('.link-line, .link-hit').each(function(d) {
-    if (typeof d.source !== 'object') return;
-    const e = ends(d);
-    this.setAttribute('x1', e[0]); this.setAttribute('y1', e[1]);
-    this.setAttribute('x2', e[2]); this.setAttribute('y2', e[3]);
+// ---- Flowchart layout ----
+// Every chart is its own top-down flowchart: prerequisites on top, one row per longest
+// prerequisite chain within the chart. A link to a concept in another chart shows that concept
+// as a dashed "ghost" box (labelled with its home chart) instead of a line across the canvas.
+// Boxes are sized to their label and placed side by side, so nothing overlaps and nothing moves.
+function layoutGraph() {
+  const home = new Map(G.concepts.map(c => [c.id, chartOf(c)]));
+  const byChart = d3.group(G.concepts, chartOf);
+  const byOrder = (a,b) => (a.ghost?1:0) - (b.ghost?1:0) || a.domain.localeCompare(b.domain) || a.label.localeCompare(b.label);
+  const placeRow = row => {   // one row of boxes left to right, centered on x = 0
+    const total = row.reduce((s,c) => s + c._w, 0) + BOX_GAP*(row.length-1);
+    let x = -total/2;
+    row.forEach(c => { c.x = x + c._w/2; x += c._w + BOX_GAP; });
+  };
+  ROUTES = new Map(); GHOSTS = []; d3Links = [];
+
+  const charts = chartNames().map(name => {
+    const members = byChart.get(name);
+    const nodes = [...members].sort(byOrder);
+    nodes.forEach(c => { c._w = boxW(c); });
+    const nodeOf = new Map(nodes.map(n => [n.id, n]));
+    const ghostOf = id => {
+      const key = `ext:${name}:${id}`;
+      if (!nodeOf.has(key)) {
+        const c = byId(id);
+        const g = { id:key, ref:id, ghost:true, chart:name, home:home.get(id), label:c.label, domain:c.domain };
+        g._w = ghostW(g); nodeOf.set(key, g); nodes.push(g); GHOSTS.push(g);
+      }
+      return nodeOf.get(key);
+    };
+    const edges = [];
+    G.links.forEach(l => {
+      const s = sid(l), t = tid(l);
+      if (!home.has(s) || !home.has(t) || s === t) return;
+      const sIn = home.get(s) === name, tIn = home.get(t) === name;
+      if (!sIn && !tIn) return;
+      edges.push({ id: sIn && tIn ? l.id : `${l.id}@${name}`, linkId:l.id, label:l.label, chart:name, sId:s, tId:t,
+                   source: sIn ? nodeOf.get(s) : ghostOf(s), target: tIn ? nodeOf.get(t) : ghostOf(t) });
+    });
+
+    // Rows: longest prerequisite chain inside this chart (ghosts included)
+    const pre = new Map(nodes.map(n => [n.id, []])), post = new Map(nodes.map(n => [n.id, []]));
+    edges.forEach(e => { if (e.label === 'prerequisite_of') { pre.get(e.target.id).push(e.source.id); post.get(e.source.id).push(e.target.id); } });
+    const L = new Map();
+    const depth = (id, seen = new Set()) => {
+      if (L.has(id)) return L.get(id);
+      if (seen.has(id)) return 0;   // cycles are rejected on input; guard anyway
+      seen.add(id);
+      const d = pre.get(id).reduce((m, p) => Math.max(m, depth(p, seen) + 1), 0);
+      L.set(id, d); return d;
+    };
+    nodes.forEach(n => depth(n.id));
+    nodes.forEach(n => {
+      if (!n.ghost) return;
+      if (!pre.get(n.id).length && post.get(n.id).length)        // incoming: just above what it unlocks
+        L.set(n.id, Math.min(...post.get(n.id).map(id => L.get(id))) - 1);
+      else if (!pre.get(n.id).length && !post.get(n.id).length) {  // related / contrasts: beside its partner
+        const e = edges.find(e => e.source === n || e.target === n);
+        L.set(n.id, L.get((e.source === n ? e.target : e.source).id));
+      }
+    });
+
+    // An edge that skips rows gets a narrow placeholder in every row it crosses, so the
+    // ordering keeps a free lane for it and the line never runs through a box
+    const all = [...nodes], adj = new Map(nodes.map(n => [n.id, []]));
+    edges.forEach(e => {
+      const [a, b] = L.get(e.source.id) <= L.get(e.target.id) ? [e.source.id, e.target.id] : [e.target.id, e.source.id];
+      const path = [a], dums = [];
+      for (let k = L.get(a) + 1; k < L.get(b); k++) {
+        const dm = { id:`~${e.id}~${k}`, _w:14, dummy:true };
+        L.set(dm.id, k); adj.set(dm.id, []); all.push(dm); dums.push(dm); path.push(dm.id);
+      }
+      path.push(b);
+      for (let i = 1; i < path.length; i++) { adj.get(path[i-1]).push(path[i]); adj.get(path[i]).push(path[i-1]); }
+      if (dums.length) ROUTES.set(e.id, dums);
+    });
+    const allOf = new Map(all.map(n => [n.id, n]));
+    const rows = [];
+    all.forEach(n => (rows[L.get(n.id)] ||= []).push(n));
+    rows.forEach((row, k) => { row.forEach(n => { n.y = k * ROW_H; }); placeRow(row); });
+    // Barycenter sweeps to reduce crossings (stable sort keeps ties deterministic)
+    const bary = (c, side) => {
+      const xs = adj.get(c.id).map(id => allOf.get(id)).filter(n => side < 0 ? L.get(n.id) < L.get(c.id) : L.get(n.id) > L.get(c.id)).map(n => n.x);
+      return xs.length ? xs.reduce((a,b) => a+b, 0) / xs.length : c.x;
+    };
+    for (let pass = 0; pass < 6; pass++) {
+      const side = pass % 2 ? 1 : -1;
+      for (const k of side < 0 ? rows.keys() : [...rows.keys()].reverse()) {
+        const row = rows[k]; if (!row) continue;
+        const key = new Map(row.map(c => [c.id, bary(c, side)]));
+        row.sort((a,b) => key.get(a.id) - key.get(b.id));
+        placeRow(row);
+      }
+    }
+    d3Links.push(...edges);
+    return { name, nodes:all, title:`${name} — ${members.length} concept${members.length===1?'':'s'}` };
   });
-  d3.selectAll('.node-g').attr('transform', d=>`translate(${d.x},${d.y})`);
+
+  // Each chart's box (local coords), then shelf-pack the charts into rows, in chart order
+  charts.forEach(ch => {
+    ch.x0 = d3.min(ch.nodes, c=>c.x - c._w/2) - PAD;  ch.x1 = d3.max(ch.nodes, c=>c.x + c._w/2) + PAD;
+    ch.y0 = d3.min(ch.nodes, c=>c.y - BOX_H/2) - PAD - TITLE_H;  ch.y1 = d3.max(ch.nodes, c=>c.y + BOX_H/2) + PAD;
+    const extra = Math.max(0, textW(ch.title) + 36 - (ch.x1 - ch.x0)) / 2;   // room for the title
+    ch.x0 -= extra; ch.x1 += extra;
+    ch.w = ch.x1 - ch.x0; ch.h = ch.y1 - ch.y0;
+  });
+  // Shelf width chosen so the packed charts roughly match the screen's aspect ratio
+  const gc = document.getElementById('graph-container');
+  const aspect = gc.clientWidth && gc.clientHeight ? gc.clientWidth / gc.clientHeight : 1.6;
+  const area = d3.sum(charts, ch => (ch.w + CHART_GAP) * (ch.h + CHART_GAP));
+  const maxW = Math.max(d3.max(charts, ch=>ch.w) || 0, Math.sqrt(area * aspect) * 1.1);
+  let cx = 0, cy = 0, shelfH = 0;
+  charts.forEach(ch => {
+    if (cx > 0 && cx + ch.w > maxW) { cx = 0; cy += shelfH + CHART_GAP; shelfH = 0; }
+    const dx = cx - ch.x0, dy = cy - ch.y0;
+    ch.nodes.forEach(c => { c.x += dx; c.y += dy; });
+    ch.x0 += dx; ch.x1 += dx; ch.y0 += dy; ch.y1 += dy;
+    cx += ch.w + CHART_GAP; shelfH = Math.max(shelfH, ch.h);
+  });
+  CHARTS = charts;
+}
+
+// Edges run from the bottom of the upper box to the top of the lower one; edges inside one row
+// loop underneath it. Ends stop just outside the box so arrowheads stay visible.
+const bumpY = d3.line().curve(d3.curveBumpY);
+function edgePath(d) {
+  const s = d.source, t = d.target, h = BOX_H/2;
+  if (Math.abs(t.y - s.y) < 1) {
+    const y = s.y + h, dip = y + 26 + Math.min(40, Math.abs(t.x - s.x) * .08);
+    return `M${s.x},${y} C${s.x},${dip} ${t.x},${dip} ${t.x},${y + 3}`;
+  }
+  const down = t.y > s.y, [a, b] = down ? [s, t] : [t, s];
+  const pts = [[a.x, a.y + h], ...(ROUTES.get(d.id) || []).flatMap(m => [[m.x, m.y - h], [m.x, m.y + h]]), [b.x, b.y - h]];
+  if (!down) pts.reverse();
+  pts[pts.length-1][1] += down ? -3 : 3;
+  return bumpY(pts);
 }
 
 function renderGraph() {
   document.getElementById('empty-state').style.display = G.concepts.length ? 'none' : 'flex';
   computeDegrees();
-  d3Links = G.links.map(l => ({...l, source:sid(l), target:tid(l)}));
+  layoutGraph();
+  if (pickedChart && !CHARTS.some(ch => ch.name === pickedChart)) pickedChart = '';
+  renderChartPicker();
 
-  sim.nodes(G.concepts);
-  sim.force('link').links(d3Links);
+  const chart = d3.select('#g-charts').selectAll('.chart')
+    .data(CHARTS).join(enter => {
+      const g = enter.append('g').attr('class','chart');
+      g.append('rect').attr('class','chart-bg').attr('rx', 14);
+      g.append('text').attr('class','chart-title');
+      return g;
+    });
+  chart.select('.chart-bg').attr('x', d=>d.x0).attr('y', d=>d.y0).attr('width', d=>d.w).attr('height', d=>d.h);
+  chart.select('.chart-title').attr('x', d=>d.x0 + 18).attr('y', d=>d.y0 + 24).text(d=>d.title)
+    .on('click', (ev,d) => { ev.stopPropagation(); zoomTo(d.x0, d.y0, d.x1, d.y1); });
 
   d3.select('#g-links').selectAll('.link-line')
-    .data(d3Links, d=>d.id).join('line')
+    .data(d3Links, d=>d.id).join('path')
     .attr('class', d=>'link-line '+d.label)
+    .attr('d', edgePath)
     .attr('marker-end', d=>d.label==='prerequisite_of' ? 'url(#arrow)' : null);
 
   d3.select('#g-link-hits').selectAll('.link-hit')
-    .data(d3Links, d=>d.id).join('line')
+    .data(d3Links, d=>d.id).join('path')
     .attr('class','link-hit')
-    .on('click', (ev,d) => { ev.stopPropagation(); showLinkPopup(ev, d); });
+    .attr('d', edgePath)
+    .on('click', (ev,d) => { ev.stopPropagation(); showLinkPopup(ev, d.linkId); });
 
   const node = d3.select('#g-nodes').selectAll('.node-g')
-    .data(G.concepts, d=>d.id)
+    .data([...G.concepts, ...GHOSTS], d=>d.id)
     .join(enter => {
-      const g = enter.append('g').attr('class','node-g').call(dragBeh());
-      g.append('circle').attr('class','node-circle');
+      const g = enter.append('g').attr('class','node-g');
+      g.append('rect').attr('class','node-box').attr('rx', 8);
       g.append('text').attr('class','node-label');
+      g.append('text').attr('class','node-sub');
       g.append('title');
       return g;
     });
-  node.attr('transform', d=>`translate(${d.x||0},${d.y||0})`)
-    .classed('pinned', d=>d.fx!=null)
-    .on('click', (ev,d) => { ev.stopPropagation(); closeLinkPopup(); selectConcept(d.id); });
-  node.select('.node-circle').attr('r', nodeR).attr('fill', d=>domainColor(d.domain));
-  node.select('.node-label').attr('dy', d=>nodeR(d)+13).text(d=>trunc(d.label, 24));
-  node.select('title').text(d=>`${d.label} · ${d.domain}`);
+  node.attr('transform', d=>`translate(${d.x},${d.y})`)
+    .classed('ghost', d=>!!d.ghost)
+    .on('click', (ev,d) => { ev.stopPropagation(); closeLinkPopup(); d.ghost ? goToConcept(d.ref) : selectConcept(d.id); });
+  node.select('.node-box')
+    .attr('x', d=>-d._w/2).attr('y', -BOX_H/2).attr('width', d=>d._w).attr('height', BOX_H)
+    .attr('fill', d=>domainColor(d.domain)).attr('fill-opacity', d=>d.ghost ? .06 : .22).attr('stroke', d=>domainColor(d.domain));
+  node.select('.node-label').attr('y', d=>d.ghost ? -6 : 0).text(d=>trunc(d.label, LABEL_MAX));
+  node.select('.node-sub').attr('y', 9).text(d=>d.ghost ? `↗ ${d.home}` : '');
+  node.select('title').text(d=>d.ghost ? `${d.label} · in “${d.home}” — click to go there` : `${d.label} · ${d.domain} · ${chartOf(d)}`);
+  applyChartPick();
 
-  sim.alpha(.3).restart();
   applyFilter();
   if (selectedId) hlConcept(selectedId); else clearHL();
 }
 
-function dragBeh() {
-  return d3.drag()
-    // Only pin after an actual drag — d3-drag also fires start/end on a plain click
-    .on('start', (e,d) => { d._moved = false; })
-    .on('drag',  (e,d) => {
-      if (!d._moved) { d._moved = true; if(!e.active) sim.alphaTarget(.3).restart(); }
-      d.fx=e.x; d.fy=e.y;
-    })
-    .on('end',   (e,d) => {
-      if (!d._moved) return;
-      d._moved = false;
-      if(!e.active) sim.alphaTarget(0);
-      d.fx=e.x; d.fy=e.y;
-      d3.selectAll('.node-g').filter(n=>n.id===d.id).classed('pinned', true);
-      if (selectedId === d.id) openDetail(d.id);
-      sync.changed();
-    });
+function fitGraph(instant) {
+  if (!CHARTS.length) return;
+  const ch = CHARTS.find(ch => ch.name === pickedChart);
+  if (ch) { zoomTo(ch.x0, ch.y0, ch.x1, ch.y1, instant); return; }
+  zoomTo(d3.min(CHARTS, ch=>ch.x0), d3.min(CHARTS, ch=>ch.y0), d3.max(CHARTS, ch=>ch.x1), d3.max(CHARTS, ch=>ch.y1), instant);
+}
+function zoomTo(x0, y0, x1, y1, instant) {
+  const c = document.getElementById('graph-container');
+  if (!c.clientWidth) return;
+  fitted = true;
+  x0 -= 20; y0 -= 20; x1 += 20; y1 += 20;
+  // Keep the fitted area between the chart toolbar and the legend
+  const top = (document.getElementById('graph-tools').offsetHeight || 0) + 16;
+  const w = c.clientWidth, h = c.clientHeight - top - (document.getElementById('legend').offsetHeight || 0) - 12;
+  const k = Math.min(1.4, Math.max(.1, Math.min(w/(x1-x0), h/(y1-y0))));
+  const t = d3.zoomIdentity.translate(w/2 - k*(x0+x1)/2, top + h/2 - k*(y0+y1)/2).scale(k);
+  const svg = d3.select('#graph-svg');
+  (instant ? svg : svg.transition().duration(500)).call(svgZoom.transform, t);
 }
 
-function fitGraph() {
-  const pts = G.concepts.filter(n=>n.x!=null);
-  const c = document.getElementById('graph-container');
-  if (!pts.length || !c.clientWidth) return;
-  const x0 = d3.min(pts,n=>n.x)-60, x1 = d3.max(pts,n=>n.x)+60;
-  const y0 = d3.min(pts,n=>n.y)-60, y1 = d3.max(pts,n=>n.y)+60;
-  const w = c.clientWidth, h = c.clientHeight;
-  const k = Math.min(1.6, Math.max(.1, Math.min(w/(x1-x0), h/(y1-y0))));
-  const t = d3.zoomIdentity.translate(w/2 - k*(x0+x1)/2, h/2 - k*(y0+y1)/2).scale(k);
-  d3.select('#graph-svg').transition().duration(500).call(svgZoom.transform, t);
+// ---- Chart picker: show every chart, or one at a time for presenting ----
+function renderChartPicker() {
+  document.getElementById('chart-pick').innerHTML = `<option value="">All charts (${CHARTS.length})</option>`
+    + CHARTS.map(ch => `<option value="${esc(ch.name)}" ${ch.name===pickedChart?'selected':''}>${esc(ch.name)}</option>`).join('');
+}
+function applyChartPick() {
+  const hide = n => !!pickedChart && n !== pickedChart;
+  d3.selectAll('.chart').classed('hidden', d => hide(d.name));
+  d3.selectAll('.node-g').classed('hidden', d => hide(d.ghost ? d.chart : chartOf(d)));
+  d3.selectAll('.link-line, .link-hit').classed('hidden', d => hide(d.chart));
+}
+function pickChart(name) {
+  pickedChart = name;
+  document.getElementById('chart-pick').value = name;
+  closeLinkPopup(); applyChartPick(); fitGraph();
+}
+function stepChart(dir) {
+  if (!CHARTS.length) return;
+  const i = CHARTS.findIndex(ch => ch.name === pickedChart);
+  const n = i < 0 ? (dir > 0 ? 0 : CHARTS.length - 1) : (i + dir + CHARTS.length) % CHARTS.length;
+  pickChart(CHARTS[n].name);
+}
+// Ghost box clicked: go to the concept's own chart and select it there
+function goToConcept(id) {
+  const c = byId(id); if (!c) return;
+  const ch = CHARTS.find(ch => ch.name === chartOf(c));
+  if (pickedChart) pickChart(ch.name); else zoomTo(ch.x0, ch.y0, ch.x1, ch.y1);
+  selectConcept(id);
 }
 
 // Transitive prerequisite chain: 'up' = everything you must know first, 'down' = everything it unlocks
@@ -569,14 +749,15 @@ function hlConcept(id) {
     if (sid(l)===id) rel.add(tid(l)); if (tid(l)===id) rel.add(sid(l));
   });
   const upS = new Set([id, ...up]), downS = new Set([id, ...down]);
+  const r = d => d.ref || d.id;   // ghosts highlight like the concept they stand for
   d3.selectAll('.node-g')
-    .classed('hl-self', d=>d.id===id)
-    .classed('hl-up',   d=>up.has(d.id))
-    .classed('hl-down', d=>down.has(d.id) && !up.has(d.id))
-    .classed('hl-rel',  d=>rel.has(d.id) && !up.has(d.id) && !down.has(d.id))
-    .classed('faded',   d=>d.id!==id && !up.has(d.id) && !down.has(d.id) && !rel.has(d.id));
+    .classed('hl-self', d=>r(d)===id)
+    .classed('hl-up',   d=>up.has(r(d)))
+    .classed('hl-down', d=>down.has(r(d)) && !up.has(r(d)))
+    .classed('hl-rel',  d=>rel.has(r(d)) && !up.has(r(d)) && !down.has(r(d)))
+    .classed('faded',   d=>r(d)!==id && !up.has(r(d)) && !down.has(r(d)) && !rel.has(r(d)));
   d3.selectAll('.link-line').each(function(d) {
-    const s = sid(d), t = tid(d), pre = d.label === 'prerequisite_of';
+    const s = d.sId, t = d.tId, pre = d.label === 'prerequisite_of';
     const isUp = pre && upS.has(s) && upS.has(t);
     const isDown = pre && !isUp && downS.has(s) && downS.has(t);
     const isRel = !pre && (s===id || t===id);
@@ -599,14 +780,14 @@ function clearHL() {
 function matches(c) {
   if (filterDomain && c.domain !== filterDomain) return false;
   if (!query) return true;
-  const hay = [c.label, c.domain, c.notes, c.tags.join(' '), c.resources.map(r=>r.title+' '+r.url).join(' ')].join(' ').toLowerCase();
+  const hay = [c.label, c.domain, chartOf(c), c.notes, c.tags.join(' '), c.resources.map(r=>r.title+' '+r.url).join(' ')].join(' ').toLowerCase();
   return query.split(/\s+/).every(q => hay.includes(q));
 }
 
 function applyFilter() {
   const vis = new Set(G.concepts.filter(matches).map(c=>c.id));
-  d3.selectAll('.node-g').classed('dim', d=>!vis.has(d.id));
-  d3.selectAll('.link-line').classed('dim', d=>!vis.has(sid(d)) || !vis.has(tid(d)));
+  d3.selectAll('.node-g').classed('dim', d=>!vis.has(d.ref || d.id));
+  d3.selectAll('.link-line').classed('dim', d=>!vis.has(d.sId) || !vis.has(d.tId));
 }
 
 // ============================================================
@@ -619,10 +800,7 @@ function addConcept() {
   const dup = G.concepts.find(c => tkey(c.label) === tkey(label));
   if (dup) { toast('That concept already exists'); selectConcept(dup.id); return; }
 
-  const svg = document.getElementById('graph-svg');
-  const [cx, cy] = d3.zoomTransform(svg).invert([svg.clientWidth/2 || 400, svg.clientHeight/2 || 300]);
-  const c = migrateConcept({ id:uid(), label, domain:selDomain, tags:splitList(document.getElementById('c-tags').value), updated:new Date().toISOString() });
-  c.x = cx + (Math.random()-.5)*80; c.y = cy + (Math.random()-.5)*80;
+  const c = migrateConcept({ id:uid(), label, domain:selDomain, chart:pickedChart || undefined, tags:splitList(document.getElementById('c-tags').value), updated:new Date().toISOString() });
   G.concepts.push(c);
   inp.value = ''; document.getElementById('c-tags').value = '';
   refreshAll(); sync.changed();
@@ -652,6 +830,7 @@ function updateField(field, val) {
     c.label = val;
   } else if (field === 'tags') c.tags = uniqTags(splitList(val));
   else if (field === 'domain') c.domain = val;
+  else if (field === 'chart') { val = val.trim(); if (val) c.chart = val; else delete c.chart; }
   touch(c);
   refreshAll(); sync.changed();
 }
@@ -684,12 +863,6 @@ async function removeResource(i) {
   if (!await confirmDelete('Remove this resource?', r.title || r.url)) return;
   c.resources.splice(i, 1); touch(c);
   flushNotes(); openDetail(c.id); renderList(); updateStats(); sync.changed();
-}
-
-function togglePin() {
-  const c = byId(selectedId); if (!c) return;
-  if (c.fx != null) { c.fx = null; c.fy = null; } else { c.fx = c.x; c.fy = c.y; }
-  flushNotes(); renderGraph(); openDetail(c.id); sync.changed();
 }
 
 // ============================================================
@@ -734,8 +907,8 @@ async function deleteLink(id) {
 // ============================================================
 // LINK POPUP
 // ============================================================
-function showLinkPopup(ev, d) {
-  const link = G.links.find(l=>l.id===d.id);
+function showLinkPopup(ev, linkId) {
+  const link = G.links.find(l=>l.id===linkId);
   if (!link) return;
   activeLinkId = link.id;
   const s = byId(sid(link)), t = byId(tid(link));
@@ -815,6 +988,9 @@ function openDetail(id) {
     </div>
     <div class="form-g"><label>Domain</label>
       <select onchange="updateField('domain', this.value)">${G.domains.map(d=>`<option value="${esc(d.name)}" ${d.name===c.domain?'selected':''}>${esc(d.name)}</option>`).join('')}</select></div>
+    <div class="form-g"><label>Chart</label>
+      <input type="text" list="chart-names" value="${esc(c.chart || '')}" placeholder="${esc(c.domain)} (same as domain)" onchange="updateField('chart', this.value)">
+      <datalist id="chart-names">${chartNames().map(n=>`<option value="${esc(n)}">`).join('')}</datalist></div>
     <div class="form-g"><label>Tags</label>
       <input type="text" value="${esc(c.tags.join(', '))}" placeholder="comma separated" onchange="updateField('tags', this.value)"></div>
     <div class="form-g"><label>Notes</label>
@@ -853,7 +1029,6 @@ function openDetail(id) {
     </div>` : ''}
 
     <div class="d-footer">
-      <button class="btn btn-secondary btn-sm" onclick="togglePin()">${c.fx!=null ? '📌 Unpin' : '📌 Pin'}</button>
       <button class="btn btn-danger btn-sm" onclick="deleteConcept('${escAttr(c.id)}')">Delete concept</button>
     </div>`;
   el.classList.add('open');
@@ -947,7 +1122,7 @@ function renderLegend() {
   const line = dash => `<svg width="22" height="6"><line x1="0" y1="3" x2="22" y2="3" ${dash?`stroke-dasharray="${dash}"`:''}/></svg>`;
   document.getElementById('legend').innerHTML = (used.length ? `<div class="row">${used.map(d=>`<span><span class="dot" style="background:${esc(d.color)}"></span>${esc(d.name)}</span>`).join('')}</div>` : '')
     + `<div class="row"><span>${line('')}→ prerequisite of</span><span>${line('6 4')}related</span><span>${line('2 4')}contrasts</span></div>`
-    + `<div class="row"><span style="color:var(--up)">● needed first</span><span style="color:var(--down)">● unlocks</span></div>`;
+    + `<div class="row"><span style="color:var(--up)">● needed first</span><span style="color:var(--down)">● unlocks</span><span>┄ dashed box = in another chart (click to go)</span></div>`;
 }
 
 function refreshAll() {
@@ -967,7 +1142,7 @@ function switchView(v) {
   document.getElementById('graph-view').classList.toggle('active', v==='graph');
   document.getElementById('list-view').classList.toggle('active', v==='list');
   closeLinkPopup();
-  if (v === 'graph') { recenter(); sim.alpha(.1).restart(); }
+  if (v === 'graph') { if (!fitted) fitGraph(true); }
   else renderList();
 }
 
@@ -991,7 +1166,6 @@ function setupUI() {
     else if (mod && e.key.toLowerCase()==='f') { e.preventDefault(); document.getElementById('search').focus(); }
     else if (e.key==='Escape') { closeLinkPopup(); if (selectedId) closeDetail(); }
   });
-  window.addEventListener('resize', () => { recenter(); sim.alpha(.1).restart(); });
   window.addEventListener('beforeunload', () => { if (notesTimer) sync.saveLocal(); });
 }
 
@@ -1016,7 +1190,7 @@ function init() {
   setupUI();
   refreshAll();
   setStatus('Ready · Ctrl/Cmd+S to save', false);
-  if (G.concepts.length) setTimeout(fitGraph, 900);
+  fitGraph(true);
   sync.start();
 }
 

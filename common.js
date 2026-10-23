@@ -73,7 +73,7 @@ function toastAction(msg, label, fn, dur=10000) {
   el.querySelector('.toast-btn').onclick = () => { el.classList.remove('show'); fn(); };
   clearTimeout(toast._t); toast._t = setTimeout(()=>el.classList.remove('show'), dur);
 }
-// Expects #status-txt and #save-dot (Literature, Knowledge)
+// Expects #status-txt and #save-dot (all three pages)
 function setStatus(msg, dirty) {
   document.getElementById('status-txt').textContent = msg;
   if (dirty !== undefined) document.getElementById('save-dot').classList.toggle('dirty', dirty);
@@ -174,10 +174,11 @@ async function confirmDelete(title, detail = '') {
 // Each time loading would change the screen, a backup is kept first (last 5, ↶ Backups) and an Undo toast is shown.
 //
 // cfg: fileName, lsKey, idbName, backupKey      storage names
-//      itemsKey ('nodes' | 'concepts'), itemsLabel   where the items live in the data
+//      itemsKey ('nodes' | 'concepts' | 'tasks'), itemsLabel   where the items live in the data
 //      snapshot()  → plain data to save           apply(data) → replace in-memory state and re-render
 //      meta()      → the live metadata object (its lastModified is bumped on every change)
-//      linkKey(l)  → duplicate key for links      acceptLink(links, l) → optional extra check (e.g. no cycles)
+//      linkKey(l)  → duplicate key for links (omit when the data has no links, e.g. Worklist)
+//      acceptLink(links, l) → optional extra check (e.g. no cycles)
 //      mergeExtra(cur, inc) → optional extra fields for a merged result (e.g. domains)
 function createFileSync(cfg) {
   const canPick = 'showOpenFilePicker' in window;
@@ -207,7 +208,7 @@ function createFileSync(cfg) {
   // ---- data helpers ----
   const items = d => (d && d[cfg.itemsKey]) || [];
   const isEmpty = d => !items(d).length;
-  const describe = d => `${items(d).length} ${cfg.itemsLabel} · ${(d.links||[]).length} links`;
+  const describe = d => `${items(d).length} ${cfg.itemsLabel}` + (cfg.linkKey ? ` · ${(d.links||[]).length} links` : '');
   const json = () => JSON.stringify(cfg.snapshot(), null, 2);
   const modified = d => (d.metadata && d.metadata.lastModified) || '';
   // Content only: moving a node doesn't count as a change
@@ -225,19 +226,22 @@ function createFileSync(cfg) {
       if (!c) { byId.set(n.id, n); added++; }
       else if ((n.updated||'') > (c.updated||'')) { byId.set(n.id, {...n, x:c.x, y:c.y, fx:c.fx, fy:c.fy}); newer++; }
     });
-    const ids = new Set(byId.keys());
-    const links = (cur.links||[]).map(l => ({...l, source:sid(l), target:tid(l)}));
-    const seen = new Set(links.map(l => l.id)), keys = new Set(links.map(cfg.linkKey));
-    (inc.links||[]).forEach(l0 => {
-      const l = {...l0, source:sid(l0), target:tid(l0)};
-      if (seen.has(l.id) || keys.has(cfg.linkKey(l)) || !ids.has(l.source) || !ids.has(l.target)) return;
-      if (cfg.acceptLink && !cfg.acceptLink(links, l)) return;
-      links.push(l); seen.add(l.id); keys.add(cfg.linkKey(l)); linksAdded++;
-    });
-    const data = {...cur, ...(cfg.mergeExtra ? cfg.mergeExtra(cur, inc) : {}), links,
+    const data = {...cur, ...(cfg.mergeExtra ? cfg.mergeExtra(cur, inc) : {}),
                   metadata: {...cur.metadata, lastModified: new Date().toISOString()}};
     data[cfg.itemsKey] = [...byId.values()];
-    return { data, summary: `+${added} ${cfg.itemsLabel}, ${newer} updated, +${linksAdded} links` };
+    if (cfg.linkKey) {
+      const ids = new Set(byId.keys());
+      const links = (cur.links||[]).map(l => ({...l, source:sid(l), target:tid(l)}));
+      const seen = new Set(links.map(l => l.id)), keys = new Set(links.map(cfg.linkKey));
+      (inc.links||[]).forEach(l0 => {
+        const l = {...l0, source:sid(l0), target:tid(l0)};
+        if (seen.has(l.id) || keys.has(cfg.linkKey(l)) || !ids.has(l.source) || !ids.has(l.target)) return;
+        if (cfg.acceptLink && !cfg.acceptLink(links, l)) return;
+        links.push(l); seen.add(l.id); keys.add(cfg.linkKey(l)); linksAdded++;
+      });
+      data.links = links;
+    }
+    return { data, summary: `+${added} ${cfg.itemsLabel}, ${newer} updated` + (cfg.linkKey ? `, +${linksAdded} links` : '') };
   }
 
   // ---- local copy ----

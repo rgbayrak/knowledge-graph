@@ -12,16 +12,28 @@
 @media (prefers-color-scheme: light){:root:not([data-theme="dark"]){color-scheme:light;--row:rgba(30,30,60,.04);--bg:#f4f5fa;--bg2:#eef0f6;--panel:#ffffff;--surface:#eef0f7;--btn2:#e8eaf3;--border:#d9dcea;--link:#b4b8d4;--c444:#7d809a;--c555:#6b6e8a;--c666:#5f627e;--c888:#555870;--c999:#4f5269;--caaa:#3f4259;--cccc:#2e3048;--cddd:#262840;--text:#1d1e35;--tint-pink:#fde7f1;--tint-amber:#ffefcc;--tint-yellow:#fff6db;--tint-green:#dff7ee;--tint-teal:#dff5f5;--accent:#4f46e5;--strong:#1d1e35;--shadow:rgba(30,30,60,.18)}}
 
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;flex-direction:column}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);height:100vh;display:flex;flex-direction:column;overflow:hidden}
+:root{--banner-bg:#3a2a00;--banner-text:#ffd166}
+:root[data-theme="light"]{--banner-bg:#fff4d6;--banner-text:#7a5200}
+@media (prefers-color-scheme: light){:root:not([data-theme="dark"]){--banner-bg:#fff4d6;--banner-text:#7a5200}}
 
 /* ---- Header ---- */
-#header{background:var(--panel);padding:12px 20px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border)}
+#header{background:var(--panel);padding:12px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px;border-bottom:1px solid var(--border);flex-shrink:0}
+.h-left{display:flex;align-items:baseline;gap:10px;min-width:0}
+.file-name{font-size:11px;color:var(--c888);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #header h1{font-size:17px;font-weight:700;color:var(--accent)}
 .header-actions{display:flex;gap:8px;align-items:center}
 #theme-btn{font-size:13px;line-height:1;min-width:30px}
+.nav-link{font-size:12px;color:var(--c888);text-decoration:none;padding:4px 6px;white-space:nowrap}
+.nav-link:hover{color:var(--accent)}
+#relink-banner{display:none;align-items:center;gap:12px;background:var(--banner-bg);color:var(--banner-text);padding:8px 20px;font-size:12px;flex-shrink:0}
+#status-bar{margin-left:auto;display:flex;align-items:center;gap:6px;font-size:11px;color:var(--c888);min-width:0}
+#status-txt{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#save-dot{width:8px;height:8px;border-radius:50%;background:#06d6a0;flex-shrink:0}
+#save-dot.dirty{background:#f77f00}
 
 /* ---- Layout ---- */
-#app{display:flex;flex:1;overflow:hidden;height:calc(100vh - 48px)}
+#app{display:flex;flex:1;overflow:hidden;min-height:0}
 
 /* ---- Sidebar ---- */
 #sidebar{width:260px;background:var(--panel);border-right:1px solid var(--border);padding:16px;display:flex;flex-direction:column;gap:14px;overflow-y:auto;flex-shrink:0}
@@ -64,7 +76,7 @@ label{display:block;font-size:10px;font-weight:700;text-transform:uppercase;lett
 #main{flex:1;display:flex;flex-direction:column;overflow:hidden}
 
 /* ---- View tabs ---- */
-.view-bar{background:var(--panel);border-bottom:1px solid var(--border);display:flex;padding:0 16px;gap:2px}
+.view-bar{background:var(--panel);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 16px;gap:2px}
 .view-btn{padding:9px 16px;background:none;border:none;color:var(--c666);cursor:pointer;font-size:12px;font-weight:600;transition:all .2s;border-bottom:2px solid transparent}
 .view-btn:hover{color:var(--caaa)}
 .view-btn.active{color:var(--accent);border-bottom-color:var(--accent)}
@@ -126,13 +138,23 @@ label{display:block;font-size:10px;font-weight:700;text-transform:uppercase;lett
 
 <!-- Header -->
 <div id="header">
-  <h1>✓ Worklist</h1>
+  <div class="h-left">
+    <h1>✓ Worklist</h1>
+    <span id="file-name" class="file-name">No file linked</span>
+  </div>
   <div class="header-actions">
-    <span id="save-status" style="font-size:11px;color:var(--c555)"></span>
+    <a class="nav-link" href="literature.html">Literature</a>
+    <a class="nav-link" href="knowledge.html">Knowledge</a>
     <button class="btn btn-secondary btn-sm" id="btn-clear-done">Clear done</button>
-    <button class="btn btn-secondary btn-sm" id="btn-export">⬇ Export</button>
+    <button class="btn btn-secondary btn-sm" onclick="sync.open()">📂 Open</button>
+    <button class="btn btn-secondary btn-sm" onclick="sync.save()">💾 Save</button>
+    <button class="btn btn-secondary btn-sm" onclick="sync.exportCopy()">⬇ Export</button>
     <button class="btn btn-secondary btn-sm" id="theme-btn" onclick="toggleTheme()" aria-label="Toggle dark/light theme"></button>
   </div>
+</div>
+<div id="relink-banner">
+  ⚠ Your worklist file needs permission to resume auto-save.
+  <button class="btn btn-secondary btn-sm" onclick="sync.relink()">Restore auto-save</button>
 </div>
 
 <div id="app">
@@ -185,6 +207,7 @@ label{display:block;font-size:10px;font-weight:700;text-transform:uppercase;lett
     <div class="view-bar">
       <button class="view-btn active" data-view="list">List</button>
       <button class="view-btn" data-view="bubbles">Bubbles</button>
+      <div id="status-bar"><span id="save-dot"></span><span id="status-txt"></span><button class="link-btn" onclick="sync.openBackups()" title="Restore an automatic backup">↶ Backups</button></div>
     </div>
 
     <!-- List view -->
@@ -228,36 +251,50 @@ let selectedPrio = 1; // 0=low,1=med,2=high
 let filterCat = null;
 let filterPrio = null;
 let currentView = 'list';
+let metadata = { created:new Date().toISOString(), lastModified:'' };
 
 // ============================================================
 // INIT
 // ============================================================
 function init() {
-  loadStorage();
-  renderCatPicker();
+  const local = sync.loadLocal();
+  if (local) loadData(local);
   renderPrioPicker();
-  renderFilterChips();
   setupUI();
-  renderList();
-  renderBubbles();
-  updateStats();
+  renderAll();
+  setStatus('Ready · Ctrl/Cmd+S to save', false);
+  sync.start();
+}
+
+function renderAll() {
+  renderCatPicker(); renderFilterChips(); renderList(); renderBubbles(); updateStats();
 }
 
 // ============================================================
 // STORAGE
 // ============================================================
-function save() {
-  localStorage.setItem('ml-todo', JSON.stringify({tasks, customCats}));
-  document.getElementById('save-status').textContent = 'Saved ✓';
-  setTimeout(()=>document.getElementById('save-status').textContent='',2000);
+// Browser copy (localStorage `ml-todo`) + linked worklist.json — see createFileSync in common.js
+function snapshot() { return { tasks, customCats, metadata }; }
+function loadData(d) {
+  tasks = Array.isArray(d.tasks) ? d.tasks : [];
+  customCats = Array.isArray(d.customCats) ? d.customCats.map(String) : [];
+  // Older copies have no metadata: an empty lastModified never counts as newer
+  metadata = { created:new Date().toISOString(), lastModified:'', ...(d.metadata || {}) };
 }
+// Replace everything on screen (from a file or a backup)
+function applyData(d) { loadData(d); renderAll(); }
 
-function loadStorage() {
-  try {
-    const d = localStorage.getItem('ml-todo');
-    if (d) { const p=JSON.parse(d); tasks=p.tasks||[]; customCats=p.customCats||[]; }
-  } catch(_) {}
-}
+const sync = createFileSync({
+  fileName:'worklist.json', lsKey:'ml-todo', idbName:'ml-todo-handles', backupKey:'ml-todo-backups',
+  itemsKey:'tasks', itemsLabel:'tasks',
+  snapshot, apply: applyData,
+  meta: () => metadata,
+  // A task present in both copies keeps the more recently `updated` one
+  mergeExtra: (cur, inc) => ({ customCats: [...new Set([...(cur.customCats||[]), ...(inc.customCats||[])])] }),
+});
+const touch = t => { t.updated = new Date().toISOString(); };
+
+function save() { sync.changed(); }
 
 function allCats() { return [...CATS, ...customCats.map(n=>({name:n,color:catColor(n)}))] }
 
@@ -358,7 +395,8 @@ function addTask() {
     priority: selectedPrio,
     due: document.getElementById('t-due').value.trim(),
     done: false,
-    created: new Date().toISOString()
+    created: new Date().toISOString(),
+    updated: new Date().toISOString()
   });
 
   document.getElementById('t-title').value='';
@@ -371,7 +409,7 @@ function addTask() {
 
 function toggleDone(id) {
   const t=tasks.find(t=>t.id===id);
-  if (t) { t.done=!t.done; t.completedAt=t.done?new Date().toISOString():null; }
+  if (t) { t.done=!t.done; t.completedAt=t.done?new Date().toISOString():null; touch(t); }
   save(); renderList(); renderBubbles(); updateStats();
 }
 
@@ -589,13 +627,8 @@ function setupUI() {
     toast('Cleared completed tasks');
   });
 
-  document.getElementById('btn-export').addEventListener('click',()=>{
-    const a=Object.assign(document.createElement('a'),{
-      href:URL.createObjectURL(new Blob([JSON.stringify({tasks,customCats},null,2)],{type:'application/json'})),
-      download:'worklist.json'
-    });
-    a.click(); URL.revokeObjectURL(a.href);
-    toast('Exported worklist.json');
+  document.addEventListener('keydown', e => {
+    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 's') { e.preventDefault(); sync.save(); }
   });
 
   document.querySelectorAll('.view-btn').forEach(btn=>{
