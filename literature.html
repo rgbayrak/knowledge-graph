@@ -23,6 +23,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .view-tab.active{background:#4361ee;color:#fff;border-color:#4361ee}
 .hdr-actions{display:flex;gap:6px;align-items:center}
 #theme-btn{font-size:13px;line-height:1;min-width:30px}
+.nav-link{font-size:12px;color:var(--c888);text-decoration:none;padding:4px 6px;white-space:nowrap}
+.nav-link:hover{color:var(--accent)}
 .node-label{paint-order:stroke;stroke:var(--bg);stroke-width:3px;stroke-linejoin:round}
 
 /* ---- Layout ---- */
@@ -259,6 +261,8 @@ a.st-title:hover{color:var(--accent);text-decoration:underline}
     <button class="view-tab" data-view="timeline">Timeline</button>
   </div>
   <div class="hdr-actions">
+    <a class="nav-link" href="knowledge.html">Knowledge</a>
+    <a class="nav-link" href="worklist.html">Worklist</a>
     <span id="file-name">No file linked</span>
     <button class="btn btn-secondary btn-sm" id="btn-open">📂 Open</button>
     <button class="btn btn-secondary btn-sm" id="btn-save">💾 Save</button>
