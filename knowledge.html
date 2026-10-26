@@ -1,0 +1,1282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Knowledge</title>
+<script src="common.js"></script>
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<style>
+/* ---- Theme tokens (dark default; light via data-theme or OS preference) ---- */
+:root{
+  color-scheme:dark;
+  --bg:#0d0d1a; --panel:#12122a; --surface:#1a1a35; --input:#0d0d1a;
+  --btn2:#1e1e40; --btn2-hover:#2a2a50; --border:#2a2a50;
+  --text:#e0e0f0; --muted:#8a8aa8; --faint:#55557a;
+  --accent:#818cf8; --primary:#4361ee; --primary-hover:#3451d1; --danger:#f72585;
+  --link:#4a4a7a; --up:#f77f00; --down:#06d6a0;
+  --shadow:rgba(0,0,0,.5); --banner-bg:#3a2a00; --banner-text:#ffd166;
+}
+:root[data-theme="light"]{
+  color-scheme:light;
+  --bg:#f4f5fa; --panel:#ffffff; --surface:#ffffff; --input:#f8f9fc;
+  --btn2:#eef0f7; --btn2-hover:#e1e4f0; --border:#d9dcea;
+  --text:#1d1e35; --muted:#5b5e7d; --faint:#8b8ea8;
+  --accent:#4f46e5; --primary:#4361ee; --primary-hover:#3451d1; --danger:#e11d74;
+  --link:#b4b8d4; --up:#d96a00; --down:#059669;
+  --shadow:rgba(30,30,60,.15); --banner-bg:#fff4d6; --banner-text:#7a5200;
+}
+@media (prefers-color-scheme: light){
+  :root:not([data-theme="dark"]){
+    color-scheme:light;
+    --bg:#f4f5fa; --panel:#ffffff; --surface:#ffffff; --input:#f8f9fc;
+    --btn2:#eef0f7; --btn2-hover:#e1e4f0; --border:#d9dcea;
+    --text:#1d1e35; --muted:#5b5e7d; --faint:#8b8ea8;
+    --accent:#4f46e5; --primary:#4361ee; --primary-hover:#3451d1; --danger:#e11d74;
+    --link:#b4b8d4; --up:#d96a00; --down:#059669;
+    --shadow:rgba(30,30,60,.15); --banner-bg:#fff4d6; --banner-text:#7a5200;
+  }
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);height:100vh;display:flex;flex-direction:column;overflow:hidden}
+a{color:var(--accent)}
+
+/* ---- Header ---- */
+#header{background:var(--panel);padding:10px 20px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);gap:12px;flex-shrink:0}
+.h-left{display:flex;align-items:baseline;gap:12px;min-width:0}
+#header h1{font-size:17px;font-weight:700;color:var(--accent);white-space:nowrap}
+.file-name{font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.header-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
+.nav-link{font-size:12px;color:var(--muted);text-decoration:none;padding:4px 6px}
+.nav-link:hover{color:var(--accent)}
+
+#relink-banner{display:none;align-items:center;gap:12px;background:var(--banner-bg);color:var(--banner-text);padding:8px 20px;font-size:12px;flex-shrink:0}
+
+/* ---- Buttons / inputs ---- */
+.btn{padding:7px 14px;border-radius:8px;border:none;cursor:pointer;font-size:12px;font-weight:600;transition:background .2s;font-family:inherit}
+.btn-primary{background:var(--primary);color:#fff}.btn-primary:hover{background:var(--primary-hover)}
+.btn-secondary{background:var(--btn2);color:var(--text);border:1px solid var(--border)}.btn-secondary:hover{background:var(--btn2-hover)}
+.btn-danger{background:var(--danger);color:#fff}.btn-danger:hover{opacity:.85}
+.btn-sm{padding:4px 10px;font-size:11px}
+.btn-full{width:100%}
+.icon-btn{background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;padding:2px 6px;border-radius:6px}
+.icon-btn:hover{color:var(--text);background:var(--btn2)}
+#theme-btn{font-size:14px;line-height:1;padding:5px 9px}
+input[type=text],input:not([type]),textarea,select{width:100%;background:var(--input);border:1px solid var(--border);color:var(--text);padding:7px 10px;border-radius:8px;font-size:12px;outline:none;font-family:inherit}
+input:focus,textarea:focus,select:focus{border-color:var(--accent)}
+textarea{resize:vertical}
+label{display:block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:4px}
+.form-g{margin-bottom:10px}
+.muted{color:var(--muted);font-size:11px}
+
+/* ---- Layout ---- */
+#app{display:flex;flex:1;overflow:hidden;position:relative;min-height:0}
+#sidebar{width:270px;background:var(--panel);border-right:1px solid var(--border);padding:16px;display:flex;flex-direction:column;gap:18px;overflow-y:auto;flex-shrink:0}
+#sidebar h3{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:10px}
+#main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+
+/* ---- Pills / chips ---- */
+.pill-row{display:flex;flex-wrap:wrap;gap:5px}
+.pill{padding:4px 10px;border-radius:20px;border:2px solid transparent;cursor:pointer;font-size:11px;font-weight:600;background:var(--btn2);color:var(--muted);transition:all .15s}
+.pill .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px;vertical-align:0}
+.pill:hover{color:var(--text)}
+.pill.sel{border-color:var(--accent);color:var(--text)}
+.pill .n{opacity:.6;margin-left:4px;font-weight:500}
+
+/* ---- Tabs + status ---- */
+#tabs{display:flex;align-items:center;gap:4px;padding:8px 16px;border-bottom:1px solid var(--border);background:var(--panel);flex-shrink:0}
+.tab{padding:6px 14px;border-radius:8px;border:none;background:none;color:var(--muted);cursor:pointer;font-size:12px;font-weight:600;font-family:inherit}
+.tab:hover{color:var(--text)}
+.tab.active{background:var(--btn2);color:var(--text)}
+#status-bar{margin-left:auto;display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);min-width:0}
+#status-txt{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#save-dot{width:8px;height:8px;border-radius:50%;background:var(--down);flex-shrink:0}
+#save-dot.dirty{background:var(--up)}
+
+.view{display:none;flex:1;min-height:0}
+.view.active{display:flex}
+
+/* ---- Graph ---- */
+#graph-container{flex:1;position:relative;overflow:hidden}
+#graph-svg{width:100%;height:100%;display:block;cursor:grab}
+#graph-svg:active{cursor:grabbing}
+.link-line{stroke:var(--link);stroke-width:1.6;fill:none;transition:opacity .2s}
+.link-line.related_to{stroke-dasharray:6 4}
+.link-line.contrasts_with{stroke-dasharray:2 4;stroke-width:2}
+.link-line.hl-up{stroke:var(--up);stroke-width:2.4}
+.link-line.hl-down{stroke:var(--down);stroke-width:2.4}
+.link-line.hl-rel{stroke:var(--accent);stroke-width:2.2}
+.link-line.faded,.link-line.dim{opacity:.08}
+.link-hit{stroke:transparent;stroke-width:12;fill:none;cursor:pointer}
+path.arrow{fill:var(--link)} path.arrow-up{fill:var(--up)} path.arrow-down{fill:var(--down)}
+.node-g{cursor:pointer;transition:opacity .2s}
+.node-box{stroke-width:1.5}
+.node-g:hover .node-box{stroke-width:2.5}
+.node-g.match .node-box{stroke-width:3.5}
+.node-g.hl-self .node-box{stroke:var(--text);stroke-width:3}
+.node-g.hl-up .node-box{stroke:var(--up);stroke-width:3}
+.node-g.hl-down .node-box{stroke:var(--down);stroke-width:3}
+.node-g.hl-rel .node-box{stroke:var(--accent);stroke-width:3}
+.chart-bg{fill:var(--panel);stroke:var(--border);stroke-width:1}
+.chart-title{fill:var(--muted);font-size:12px;font-weight:600;cursor:pointer}
+.chart-title:hover{fill:var(--text)}
+.node-sub{fill:var(--muted);font-size:10px;text-anchor:middle;dominant-baseline:central;pointer-events:none}
+.node-g.ghost .node-box{stroke-dasharray:4 3}
+.node-g.ghost .node-label{font-weight:500}
+.chart.hidden,.node-g.hidden,.link-line.hidden,.link-hit.hidden,
+.chart.filtered-out,.node-g.filtered-out,.link-line.filtered-out,.link-hit.filtered-out{display:none}
+#graph-tools select{width:auto;max-width:220px;padding:5px 8px}
+.node-g.faded,.node-g.dim{opacity:.15}
+.node-label{fill:var(--text);font-size:12px;font-weight:600;text-anchor:middle;dominant-baseline:central;pointer-events:none}
+
+#legend{position:absolute;left:12px;bottom:12px;background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:8px 10px;font-size:11px;color:var(--muted);display:flex;flex-direction:column;gap:4px;max-width:calc(100% - 24px);opacity:.95}
+#legend .row{display:flex;flex-wrap:wrap;gap:4px 12px;align-items:center}
+#legend .dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:4px}
+#legend svg{vertical-align:middle;margin-right:4px}
+#legend line{stroke:var(--muted);stroke-width:2}
+#graph-tools{position:absolute;right:12px;top:12px;display:flex;gap:6px}
+#empty-state,#no-match{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:var(--muted);font-size:13px;text-align:center;padding:16px;pointer-events:none}
+#empty-state .big{font-size:36px}
+
+#link-popup{position:absolute;display:none;width:240px;background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:12px;box-shadow:0 8px 24px var(--shadow);z-index:20}
+#link-popup.open{display:block}
+#lp-from-to{font-size:12px;margin-bottom:8px;line-height:1.4}
+.lp-actions{display:flex;gap:6px;margin-top:8px}
+
+/* ---- List view ---- */
+#list-view{overflow-y:auto;padding:16px 20px;flex-direction:column;gap:20px}
+.dom-group h2{font-size:13px;font-weight:700;display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.dom-group h2 .dot{width:10px;height:10px;border-radius:50%}
+.dom-group h2 .count{color:var(--muted);font-weight:500}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px;cursor:pointer;transition:border-color .15s}
+.card:hover{border-color:var(--accent)}
+.card.sel{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.card-title{font-size:13px;font-weight:700;margin-bottom:4px}
+.card-meta{font-size:11px;color:var(--muted);margin-bottom:6px}
+.card-notes{font-size:12px;color:var(--muted);line-height:1.45;white-space:pre-wrap;overflow:hidden;display:-webkit-box;-webkit-line-clamp:3;line-clamp:3;-webkit-box-orient:vertical}
+.tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:8px}
+.tag{font-size:10px;padding:2px 7px;border-radius:10px;background:var(--btn2);color:var(--muted)}
+.list-empty{color:var(--muted);font-size:13px;padding:40px;text-align:center}
+
+/* ---- Detail panel ---- */
+#detail{position:absolute;top:0;right:0;bottom:0;width:380px;max-width:100%;background:var(--panel);border-left:1px solid var(--border);box-shadow:-8px 0 24px var(--shadow);padding:16px;overflow-y:auto;transform:translateX(105%);transition:transform .25s;z-index:30}
+#detail.open{transform:none}
+.d-head{display:flex;align-items:center;gap:8px;margin-bottom:14px}
+.d-dot{width:12px;height:12px;border-radius:50%;flex-shrink:0}
+.d-title{font-size:15px !important;font-weight:700;background:transparent !important;border-color:transparent !important;padding:4px 6px !important}
+.d-title:hover,.d-title:focus{border-color:var(--border) !important}
+textarea.notes{min-height:180px;line-height:1.5;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px}
+.res-list,.conn-list{display:flex;flex-direction:column;gap:4px;margin-bottom:6px}
+.res-item,.conn-item{display:flex;align-items:center;justify-content:space-between;gap:6px;font-size:12px;padding:5px 8px;border-radius:6px;background:var(--btn2)}
+.res-item a{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.conn-item .name{cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.conn-item .name:hover{color:var(--accent)}
+.conn-item .lbl{color:var(--muted);font-size:10px;margin-right:4px}
+.conn-item .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px}
+.x{background:none;border:none;color:var(--faint);cursor:pointer;font-size:11px;padding:0 4px;flex-shrink:0}
+.x:hover{color:var(--danger)}
+.res-add,.inline-add{display:flex;gap:4px}
+.res-add input{flex:1;min-width:0}
+.inline-add select{flex:1;min-width:0}
+.d-section{border-top:1px solid var(--border);padding-top:12px;margin-top:12px}
+.d-section h4{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;display:flex;align-items:center;gap:6px}
+.d-section h4 .sw{width:10px;height:3px;border-radius:2px}
+.d-footer{display:flex;gap:8px;margin-top:16px}
+.danger-zone{display:block;margin-top:24px;padding-top:10px;border-top:1px solid var(--border)}
+.danger-zone summary{font-size:11px;color:var(--muted);cursor:pointer;margin-bottom:8px}
+
+#stats{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.stat{background:var(--btn2);border-radius:8px;padding:8px}
+.stat b{display:block;font-size:16px}
+.stat span{font-size:10px;color:var(--muted)}
+
+#toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--panel);color:var(--text);border:1px solid var(--border);padding:9px 16px;border-radius:10px;font-size:12px;box-shadow:0 8px 24px var(--shadow);transition:transform .25s;z-index:100;pointer-events:none}
+#toast.show{transform:translateX(-50%) translateY(0)}
+
+@media (max-width:760px){
+  body{height:auto;min-height:100vh;overflow:auto}
+  #header{flex-direction:column;align-items:flex-start;padding:10px 16px}
+  #app{flex-direction:column;overflow:visible}
+  #sidebar{width:100%;border-right:none;border-bottom:1px solid var(--border);overflow:visible}
+  #graph-container{height:70vh;flex:none}
+  #detail{position:fixed;top:0}
+  #list-view{padding:16px}
+}
+</style>
+</head>
+<body>
+
+<div id="header">
+  <div class="h-left">
+    <h1>🎯 Knowledge</h1>
+    <span id="file-name" class="file-name">No file linked</span>
+  </div>
+  <div class="header-actions">
+    <a class="nav-link" href="literature.html">Literature</a>
+    <a class="nav-link" href="worklist.html">Worklist</a>
+    <button class="btn btn-secondary btn-sm" onclick="sync.open()">📂 Open</button>
+    <button class="btn btn-secondary btn-sm" onclick="sync.save()">💾 Save</button>
+    <button class="btn btn-secondary btn-sm" onclick="sync.exportCopy()">⬇ Export</button>
+    <button id="theme-btn" class="btn btn-secondary" onclick="toggleTheme()" aria-label="Toggle dark/light theme"></button>
+  </div>
+</div>
+<div id="relink-banner">
+  ⚠ Your knowledge file needs permission to resume auto-save.
+  <button class="btn btn-secondary btn-sm" onclick="sync.relink()">Restore auto-save</button>
+</div>
+
+<div id="app">
+  <aside id="sidebar">
+    <section>
+      <h3>Search</h3>
+      <input id="search" type="text" placeholder="Label, notes, tags…  (Ctrl/Cmd+F)">
+      <div class="muted" style="margin-top:6px">Charts without a match are hidden while searching or filtering by domain.</div>
+    </section>
+
+    <section>
+      <h3>Domains</h3>
+      <div id="domain-filter" class="pill-row"></div>
+    </section>
+
+    <section>
+      <h3>Add new concept</h3>
+      <div class="form-g"><input id="c-label" type="text" placeholder="e.g. Gradient Descent"></div>
+      <div class="form-g"><select id="domain-picker" onchange="pickDomain(this.value)" aria-label="Domain"></select></div>
+      <div class="form-g"><input id="c-tags" type="text" placeholder="Tags, comma separated"></div>
+      <button class="btn btn-primary btn-full" onclick="addConcept()">+ Add new concept</button>
+    </section>
+
+    <section>
+      <h3>Connect</h3>
+      <div class="form-g"><select id="l-from"></select></div>
+      <div class="form-g"><select id="l-type"></select></div>
+      <div class="form-g"><select id="l-to"></select></div>
+      <button class="btn btn-secondary btn-full" onclick="addLinkFromForm()">Connect</button>
+    </section>
+
+    <section>
+      <h3>Stats</h3>
+      <div id="stats"></div>
+    </section>
+  </aside>
+
+  <main id="main">
+    <div id="tabs">
+      <button class="tab active" data-view="graph">Graph</button>
+      <button class="tab" data-view="list">List</button>
+      <div id="status-bar"><span id="save-dot"></span><span id="status-txt"></span><button class="link-btn" onclick="sync.openBackups()" title="Restore an automatic backup">↶ Backups</button></div>
+    </div>
+
+    <div id="graph-view" class="view active">
+      <div id="graph-container">
+        <svg id="graph-svg"></svg>
+        <div id="graph-tools">
+          <button class="btn btn-secondary btn-sm" onclick="stepChart(-1)" title="Previous chart" aria-label="Previous chart">◀</button>
+          <select id="chart-pick" onchange="pickChart(this.value)" aria-label="Chart"></select>
+          <button class="btn btn-secondary btn-sm" onclick="stepChart(1)" title="Next chart" aria-label="Next chart">▶</button>
+          <button class="btn btn-secondary btn-sm" onclick="fitGraph()">⤢ Fit</button>
+        </div>
+        <div id="legend"></div>
+        <div id="empty-state"><div class="big">🎯</div><div>No concepts yet.</div><div>Add one in the sidebar, or 📂 Open knowledge.json.</div></div>
+        <div id="no-match"><div class="big">🔍</div><div>No chart has a concept matching the search and domain filter.</div></div>
+        <div id="link-popup">
+          <div id="lp-from-to"></div>
+          <select id="lp-label"></select>
+          <div class="lp-actions">
+            <button class="btn btn-primary btn-sm" onclick="saveLinkEdit()">Save</button>
+            <button class="btn btn-secondary btn-sm" onclick="reverseLink()">⇄ Reverse</button>
+            <button class="btn btn-danger btn-sm" onclick="deleteLink(activeLinkId)">Delete</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="list-view" class="view"></div>
+  </main>
+
+  <aside id="detail"></aside>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ============================================================
+// CONSTANTS
+// ============================================================
+const BUILTIN_DOMAINS = [
+  {name:'ML',             color:'#4361ee'},
+  {name:'Deep Learning',  color:'#7209b7'},
+  {name:'Stats',          color:'#06d6a0'},
+  {name:'Probability',    color:'#f77f00'},
+  {name:'Linear Algebra', color:'#4cc9f0'},
+  {name:'SQL',            color:'#f72585'},
+  {name:'Coding',         color:'#818cf8'},
+  {name:'System Design',  color:'#e9b300'},
+];
+const LINK_TYPES = {
+  prerequisite_of: 'is a prerequisite of',
+  related_to:      'is related to',
+  contrasts_with:  'contrasts with',
+};
+
+// ============================================================
+// STATE
+// ============================================================
+let G = emptyData();
+let svgZoom = null, gMain = null, fitted = false, CHARTS = [], ROUTES = new Map(), GHOSTS = [];
+let pickedChart = '';   // '' = show all charts
+let d3Links = [];
+let DEG = new Map();
+let selectedId = null;
+let selDomain = 'ML';
+let filterDomains = new Set();   // empty = all domains
+let openCards = new Set();       // charts whose concepts were all activated by clicking the card (reset when the domain filter changes)
+let query = '';
+let shownKey = null;     // charts left visible by the last search (null = all)
+let currentView = 'graph';
+let activeLinkId = null;
+let notesTimer = null;
+
+function emptyData() {
+  const now = new Date().toISOString();
+  return { concepts:[], links:[], domains:BUILTIN_DOMAINS.map(d=>({...d})), charts:[], metadata:{created:now, lastModified:now, version:1} };
+}
+
+// ============================================================
+// DATA
+// ============================================================
+function migrateConcept(c) {
+  const out = {
+    id: String(c.id || uid()),
+    label: String(c.label || 'Untitled').trim() || 'Untitled',
+    domain: String(c.domain || 'ML'),
+    notes: String(c.notes || ''),
+    resources: (Array.isArray(c.resources) ? c.resources : [])
+      .filter(r => r && (r.url || r.title))
+      .map(r => ({title:String(r.title||''), url:String(r.url||'')})),
+    tags: uniqTags(Array.isArray(c.tags) ? c.tags : splitList(c.tags)),
+  };
+  if (c.chart && String(c.chart).trim()) out.chart = String(c.chart).trim();
+  if (c.updated) out.updated = String(c.updated);
+  return out;
+}
+
+function mergeDomains(list) {
+  const out = BUILTIN_DOMAINS.map(d=>({...d}));
+  (Array.isArray(list) ? list : []).forEach(d => {
+    if (!d || !d.name) return;
+    const ex = out.find(o => o.name === d.name);
+    if (ex) ex.color = d.color || ex.color;
+    else out.push({name:String(d.name), color:String(d.color || autoColor(d.name))});
+  });
+  return out;
+}
+
+function loadData(data) {
+  G.concepts = (data.concepts || []).map(migrateConcept);
+  const ids = new Set(G.concepts.map(c=>c.id));
+  G.links = (data.links || [])
+    .map(l => ({ id:String(l.id||uid()), source:String(sid(l)), target:String(tid(l)),
+                 label: LINK_TYPES[l.label] ? l.label : 'related_to', created: l.created || new Date().toISOString() }))
+    .filter(l => ids.has(l.source) && ids.has(l.target) && l.source !== l.target);
+  G.domains = mergeDomains(data.domains);
+  G.charts = Array.isArray(data.charts) ? [...new Set(data.charts.map(String))] : [];
+  // Concepts may use domains missing from the list (e.g. hand-edited JSON)
+  G.concepts.forEach(c => { if (!G.domains.some(d=>d.name===c.domain)) G.domains.push({name:c.domain, color:autoColor(c.domain)}); });
+  G.metadata = {...emptyData().metadata, ...(data.metadata || {})};
+}
+
+// Replace everything on screen (from a file or a backup)
+function applyData(data) {
+  loadData(data);
+  if (selectedId && !byId(selectedId)) selectedId = null;
+  refreshAll();
+  fitGraph(true);
+}
+
+// Is there a prerequisite path from → to? (used to reject cycles)
+function reaches(links, from, to) {
+  const seen = new Set(), stack = [from];
+  while (stack.length) {
+    const cur = stack.pop();
+    if (cur === to) return true;
+    if (seen.has(cur)) continue;
+    seen.add(cur);
+    links.forEach(l => { if (l.label === 'prerequisite_of' && sid(l) === cur) stack.push(tid(l)); });
+  }
+  return false;
+}
+
+function serialize() {
+  return {
+    concepts: G.concepts.map(c => ({ id:c.id, label:c.label, domain:c.domain, chart:c.chart, notes:c.notes, resources:c.resources, tags:c.tags, updated:c.updated })),
+    links: G.links.map(l => ({ id:l.id, source:sid(l), target:tid(l), label:l.label, created:l.created })),
+    domains: G.domains,
+    charts: G.charts,
+    metadata: G.metadata,
+  };
+}
+
+// ============================================================
+// PERSISTENCE (browser copy + linked knowledge.json — see createFileSync in common.js)
+// ============================================================
+const sync = createFileSync({
+  fileName:'knowledge.json', lsKey:'ml-prep', idbName:'ml-prep-handles', backupKey:'ml-prep-backups',
+  itemsKey:'concepts', itemsLabel:'concepts',
+  snapshot: serialize,
+  apply: applyData,
+  meta: () => G.metadata,
+  linkKey: l => [sid(l), tid(l)].sort().join('|'),          // one connection per pair
+  acceptLink: (links, l) => l.label !== 'prerequisite_of' || !reaches(links, tid(l), sid(l)),
+  mergeExtra: (cur, inc) => ({ domains: mergeDomains([...(inc.domains||[]), ...(cur.domains||[])]),
+                             charts: [...new Set([...(cur.charts||[]), ...(inc.charts||[])])] }),
+});
+const touch = c => { c.updated = new Date().toISOString(); };
+
+// ============================================================
+// GRAPH
+// ============================================================
+function setupGraph() {
+  const svg = d3.select('#graph-svg');
+  const c = document.getElementById('graph-container');
+
+  svg.append('defs').html(['arrow','arrow-up','arrow-down'].map(id =>
+    `<marker id="${id}" viewBox="0 -5 10 10" refX="10" refY="0" markerWidth="6" markerHeight="6" orient="auto"><path class="${id}" d="M0,-5L10,0L0,5"/></marker>`
+  ).join(''));
+
+  // clickDistance: a few px of hand jitter is still a click, not a pan (d3 would swallow the click)
+  svgZoom = d3.zoom().scaleExtent([.1, 4]).clickDistance(5).on('zoom', e => gMain.attr('transform', e.transform));
+  svg.call(svgZoom).on('dblclick.zoom', null);
+
+  svg.on('click', e => {
+    if (e.target === svg.node() || e.target.classList.contains('chart-bg')) { closeDetail(); closeLinkPopup(); }
+    // Empty space in a card while filtering by domain: activate all of that card's concepts
+    if (e.target.classList.contains('chart-bg') && filterDomains.size) {
+      openCards.add(d3.select(e.target).datum().name); applyFilter();
+    }
+  });
+
+  gMain = svg.append('g');
+  gMain.append('g').attr('id','g-charts');
+  gMain.append('g').attr('id','g-links');
+  gMain.append('g').attr('id','g-link-hits');
+  gMain.append('g').attr('id','g-nodes');
+
+}
+
+function computeDegrees() {
+  DEG = new Map();
+  G.links.forEach(l => { [sid(l), tid(l)].forEach(id => DEG.set(id, (DEG.get(id)||0)+1)); });
+}
+// ---- Flowchart layout ----
+// Every group of connected concepts becomes its own top-down flowchart: prerequisites on top,
+// one row per longest-prerequisite-chain depth. Unconnected concepts share a "Standalone" chart.
+// Boxes are sized to their label and placed side by side, so nothing overlaps and nothing moves.
+const BOX_H = 34, BOX_GAP = 24, ROW_H = 92, PAD = 28, TITLE_H = 30, CHART_GAP = 48, LABEL_MAX = 34;
+let measureCtx = null;
+function textW(t) {
+  measureCtx ||= document.createElement('canvas').getContext('2d');
+  measureCtx.font = `600 12px ${getComputedStyle(document.body).fontFamily}`;
+  return Math.ceil(measureCtx.measureText(t).width);
+}
+function boxW(c) { return Math.max(90, textW(trunc(c.label, LABEL_MAX)) + 28); }
+function ghostW(g) { return Math.max(90, textW(trunc(g.label, LABEL_MAX)), Math.ceil(textW(g.home) * .85) + 14) + 28; }
+
+// Which flowchart a concept belongs to: its own `chart` field, else its domain.
+// Order follows G.charts (saved in the JSON); charts not listed there come after, A–Z.
+const chartOf = c => c.chart || c.domain;
+function chartNames() {
+  const used = new Set(G.concepts.map(chartOf));
+  const listed = G.charts.filter(n => used.has(n));
+  return [...listed, ...[...used].filter(n => !listed.includes(n)).sort(byAlpha)];
+}
+
+// ---- Flowchart layout ----
+// Every chart is its own top-down flowchart: prerequisites on top, one row per longest
+// prerequisite chain within the chart. A link to a concept in another chart shows that concept
+// as a dashed "ghost" box (labelled with its home chart) instead of a line across the canvas.
+// Boxes are sized to their label and placed side by side, so nothing overlaps and nothing moves.
+function layoutGraph() {
+  const home = new Map(G.concepts.map(c => [c.id, chartOf(c)]));
+  const byChart = d3.group(G.concepts, chartOf);
+  const byOrder = (a,b) => (a.ghost?1:0) - (b.ghost?1:0) || a.domain.localeCompare(b.domain) || a.label.localeCompare(b.label);
+  const placeRow = row => {   // one row of boxes left to right, centered on x = 0
+    const total = row.reduce((s,c) => s + c._w, 0) + BOX_GAP*(row.length-1);
+    let x = -total/2;
+    row.forEach(c => { c.x = x + c._w/2; x += c._w + BOX_GAP; });
+  };
+  ROUTES = new Map(); GHOSTS = []; d3Links = [];
+
+  const charts = chartNames().map(name => {
+    const members = byChart.get(name);
+    const nodes = [...members].sort(byOrder);
+    nodes.forEach(c => { c._w = boxW(c); });
+    const nodeOf = new Map(nodes.map(n => [n.id, n]));
+    const ghostOf = id => {
+      const key = `ext:${name}:${id}`;
+      if (!nodeOf.has(key)) {
+        const c = byId(id);
+        const g = { id:key, ref:id, ghost:true, chart:name, home:home.get(id), label:c.label, domain:c.domain };
+        g._w = ghostW(g); nodeOf.set(key, g); nodes.push(g); GHOSTS.push(g);
+      }
+      return nodeOf.get(key);
+    };
+    const edges = [];
+    G.links.forEach(l => {
+      const s = sid(l), t = tid(l);
+      if (!home.has(s) || !home.has(t) || s === t) return;
+      const sIn = home.get(s) === name, tIn = home.get(t) === name;
+      if (!sIn && !tIn) return;
+      edges.push({ id: sIn && tIn ? l.id : `${l.id}@${name}`, linkId:l.id, label:l.label, chart:name, sId:s, tId:t,
+                   source: sIn ? nodeOf.get(s) : ghostOf(s), target: tIn ? nodeOf.get(t) : ghostOf(t) });
+    });
+
+    // Rows: longest prerequisite chain inside this chart (ghosts included)
+    const pre = new Map(nodes.map(n => [n.id, []])), post = new Map(nodes.map(n => [n.id, []]));
+    edges.forEach(e => { if (e.label === 'prerequisite_of') { pre.get(e.target.id).push(e.source.id); post.get(e.source.id).push(e.target.id); } });
+    const L = new Map();
+    const depth = (id, seen = new Set()) => {
+      if (L.has(id)) return L.get(id);
+      if (seen.has(id)) return 0;   // cycles are rejected on input; guard anyway
+      seen.add(id);
+      const d = pre.get(id).reduce((m, p) => Math.max(m, depth(p, seen) + 1), 0);
+      L.set(id, d); return d;
+    };
+    nodes.forEach(n => depth(n.id));
+    nodes.forEach(n => {
+      if (!n.ghost) return;
+      if (!pre.get(n.id).length && post.get(n.id).length)        // incoming: just above what it unlocks
+        L.set(n.id, Math.min(...post.get(n.id).map(id => L.get(id))) - 1);
+      else if (!pre.get(n.id).length && !post.get(n.id).length) {  // related / contrasts: beside its partner
+        const e = edges.find(e => e.source === n || e.target === n);
+        L.set(n.id, L.get((e.source === n ? e.target : e.source).id));
+      }
+    });
+
+    // An edge that skips rows gets a narrow placeholder in every row it crosses, so the
+    // ordering keeps a free lane for it and the line never runs through a box
+    const all = [...nodes], adj = new Map(nodes.map(n => [n.id, []]));
+    edges.forEach(e => {
+      const [a, b] = L.get(e.source.id) <= L.get(e.target.id) ? [e.source.id, e.target.id] : [e.target.id, e.source.id];
+      const path = [a], dums = [];
+      for (let k = L.get(a) + 1; k < L.get(b); k++) {
+        const dm = { id:`~${e.id}~${k}`, _w:14, dummy:true };
+        L.set(dm.id, k); adj.set(dm.id, []); all.push(dm); dums.push(dm); path.push(dm.id);
+      }
+      path.push(b);
+      for (let i = 1; i < path.length; i++) { adj.get(path[i-1]).push(path[i]); adj.get(path[i]).push(path[i-1]); }
+      if (dums.length) ROUTES.set(e.id, dums);
+    });
+    const allOf = new Map(all.map(n => [n.id, n]));
+    const rows = [];
+    all.forEach(n => (rows[L.get(n.id)] ||= []).push(n));
+    rows.forEach((row, k) => { row.forEach(n => { n.y = k * ROW_H; }); placeRow(row); });
+    // Barycenter sweeps to reduce crossings (stable sort keeps ties deterministic)
+    const bary = (c, side) => {
+      const xs = adj.get(c.id).map(id => allOf.get(id)).filter(n => side < 0 ? L.get(n.id) < L.get(c.id) : L.get(n.id) > L.get(c.id)).map(n => n.x);
+      return xs.length ? xs.reduce((a,b) => a+b, 0) / xs.length : c.x;
+    };
+    for (let pass = 0; pass < 6; pass++) {
+      const side = pass % 2 ? 1 : -1;
+      for (const k of side < 0 ? rows.keys() : [...rows.keys()].reverse()) {
+        const row = rows[k]; if (!row) continue;
+        const key = new Map(row.map(c => [c.id, bary(c, side)]));
+        row.sort((a,b) => key.get(a.id) - key.get(b.id));
+        placeRow(row);
+      }
+    }
+    d3Links.push(...edges);
+    return { name, nodes:all, title:`${name} — ${members.length} concept${members.length===1?'':'s'}` };
+  });
+
+  // Each chart's box (local coords), then shelf-pack the charts into rows, in chart order
+  charts.forEach(ch => {
+    ch.x0 = d3.min(ch.nodes, c=>c.x - c._w/2) - PAD;  ch.x1 = d3.max(ch.nodes, c=>c.x + c._w/2) + PAD;
+    ch.y0 = d3.min(ch.nodes, c=>c.y - BOX_H/2) - PAD - TITLE_H;  ch.y1 = d3.max(ch.nodes, c=>c.y + BOX_H/2) + PAD;
+    const extra = Math.max(0, textW(ch.title) + 36 - (ch.x1 - ch.x0)) / 2;   // room for the title
+    ch.x0 -= extra; ch.x1 += extra;
+    ch.w = ch.x1 - ch.x0; ch.h = ch.y1 - ch.y0;
+  });
+  packCharts(charts);
+  CHARTS = charts;
+}
+
+// Shelf-pack charts into rows, in chart order, moving their boxes and nodes.
+// Shelf width chosen so the packed charts roughly match the screen's aspect ratio
+function packCharts(charts) {
+  const gc = document.getElementById('graph-container');
+  const aspect = gc.clientWidth && gc.clientHeight ? gc.clientWidth / gc.clientHeight : 1.6;
+  const area = d3.sum(charts, ch => (ch.w + CHART_GAP) * (ch.h + CHART_GAP));
+  const maxW = Math.max(d3.max(charts, ch=>ch.w) || 0, Math.sqrt(area * aspect) * 1.1);
+  let cx = 0, cy = 0, shelfH = 0;
+  charts.forEach(ch => {
+    if (cx > 0 && cx + ch.w > maxW) { cx = 0; cy += shelfH + CHART_GAP; shelfH = 0; }
+    const dx = cx - ch.x0, dy = cy - ch.y0;
+    ch.nodes.forEach(c => { c.x += dx; c.y += dy; });
+    ch.x0 += dx; ch.x1 += dx; ch.y0 += dy; ch.y1 += dy;
+    cx += ch.w + CHART_GAP; shelfH = Math.max(shelfH, ch.h);
+  });
+}
+
+// Edges run from the bottom of the upper box to the top of the lower one; edges inside one row
+// loop underneath it. Ends stop just outside the box so arrowheads stay visible.
+const bumpY = d3.line().curve(d3.curveBumpY);
+function edgePath(d) {
+  const s = d.source, t = d.target, h = BOX_H/2;
+  if (Math.abs(t.y - s.y) < 1) {
+    const y = s.y + h, dip = y + 26 + Math.min(40, Math.abs(t.x - s.x) * .08);
+    return `M${s.x},${y} C${s.x},${dip} ${t.x},${dip} ${t.x},${y + 3}`;
+  }
+  const down = t.y > s.y, [a, b] = down ? [s, t] : [t, s];
+  const pts = [[a.x, a.y + h], ...(ROUTES.get(d.id) || []).flatMap(m => [[m.x, m.y - h], [m.x, m.y + h]]), [b.x, b.y - h]];
+  if (!down) pts.reverse();
+  pts[pts.length-1][1] += down ? -3 : 3;
+  return bumpY(pts);
+}
+
+function renderGraph() {
+  document.getElementById('empty-state').style.display = G.concepts.length ? 'none' : 'flex';
+  computeDegrees();
+  layoutGraph();
+  if (pickedChart && !CHARTS.some(ch => ch.name === pickedChart)) pickedChart = '';
+  renderChartPicker();
+
+  const chart = d3.select('#g-charts').selectAll('.chart')
+    .data(CHARTS).join(enter => {
+      const g = enter.append('g').attr('class','chart');
+      g.append('rect').attr('class','chart-bg').attr('rx', 14);
+      g.append('text').attr('class','chart-title');
+      return g;
+    });
+  chart.select('.chart-title').text(d=>d.title)
+    .on('click', (ev,d) => { ev.stopPropagation(); zoomTo(d.x0, d.y0, d.x1, d.y1); });
+
+  d3.select('#g-links').selectAll('.link-line')
+    .data(d3Links, d=>d.id).join('path')
+    .attr('class', d=>'link-line '+d.label)
+    .attr('marker-end', d=>d.label==='prerequisite_of' ? 'url(#arrow)' : null);
+
+  d3.select('#g-link-hits').selectAll('.link-hit')
+    .data(d3Links, d=>d.id).join('path')
+    .attr('class','link-hit')
+    .on('click', (ev,d) => { ev.stopPropagation(); showLinkPopup(ev, d.linkId); });
+
+  const node = d3.select('#g-nodes').selectAll('.node-g')
+    .data([...G.concepts, ...GHOSTS], d=>d.id)
+    .join(enter => {
+      const g = enter.append('g').attr('class','node-g');
+      g.append('rect').attr('class','node-box').attr('rx', 8);
+      g.append('text').attr('class','node-label');
+      g.append('text').attr('class','node-sub');
+      g.append('title');
+      return g;
+    });
+  node.classed('ghost', d=>!!d.ghost)
+    // A ghost selects the concept it stands for, in place; double-click zooms to the concept's real box
+    .on('click', (ev,d) => { ev.stopPropagation(); closeLinkPopup(); selectConcept(d.ref || d.id); })
+    .on('dblclick', (ev,d) => { ev.stopPropagation(); goToConcept(d.ref || d.id); });
+  node.select('.node-box')
+    .attr('x', d=>-d._w/2).attr('y', -BOX_H/2).attr('width', d=>d._w).attr('height', BOX_H)
+    .attr('fill', d=>domainColor(d.domain)).attr('fill-opacity', d=>d.ghost ? .06 : .22).attr('stroke', d=>domainColor(d.domain));
+  node.select('.node-label').attr('y', d=>d.ghost ? -6 : 0).text(d=>trunc(d.label, LABEL_MAX));
+  node.select('.node-sub').attr('y', 9).text(d=>d.ghost ? `↗ ${d.home}` : '');
+  node.select('title').text(d=>d.ghost ? `${d.label} · in “${d.home}” — double-click to go there` : `${d.label} · ${d.domain} · ${chartOf(d)}`);
+  const shown = shownCharts();
+  if (shown) packCharts(CHARTS.filter(ch => shown.has(ch.name)));
+  positionGraph();
+  applyChartPick();
+
+  applyFilter();
+  if (selectedId) hlConcept(selectedId); else clearHL();
+}
+
+// Apply the laid-out positions to the drawn charts, links and boxes
+function positionGraph() {
+  const chart = d3.selectAll('.chart');
+  chart.select('.chart-bg').attr('x', d=>d.x0).attr('y', d=>d.y0).attr('width', d=>d.w).attr('height', d=>d.h);
+  chart.select('.chart-title').attr('x', d=>d.x0 + 18).attr('y', d=>d.y0 + 24);
+  d3.selectAll('.link-line, .link-hit').attr('d', edgePath);
+  d3.selectAll('.node-g').attr('transform', d=>`translate(${d.x},${d.y})`);
+}
+
+function fitGraph(instant) {
+  const shown = shownCharts();
+  const vis = CHARTS.filter(ch => !shown || shown.has(ch.name));
+  if (!vis.length) return;
+  const ch = vis.find(ch => ch.name === pickedChart);
+  if (ch) { zoomTo(ch.x0, ch.y0, ch.x1, ch.y1, instant); return; }
+  zoomTo(d3.min(vis, ch=>ch.x0), d3.min(vis, ch=>ch.y0), d3.max(vis, ch=>ch.x1), d3.max(vis, ch=>ch.y1), instant);
+}
+function zoomTo(x0, y0, x1, y1, instant) {
+  const c = document.getElementById('graph-container');
+  if (!c.clientWidth) return;
+  fitted = true;
+  x0 -= 20; y0 -= 20; x1 += 20; y1 += 20;
+  // Keep the fitted area between the chart toolbar and the legend, and left of the open detail panel
+  const top = (document.getElementById('graph-tools').offsetHeight || 0) + 16;
+  const det = document.getElementById('detail');
+  const right = det.classList.contains('open') && c.clientWidth - det.offsetWidth > 300 ? det.offsetWidth : 0;
+  const w = c.clientWidth - right, h = c.clientHeight - top - (document.getElementById('legend').offsetHeight || 0) - 12;
+  const k = Math.min(1.4, Math.max(.1, Math.min(w/(x1-x0), h/(y1-y0))));
+  const t = d3.zoomIdentity.translate(w/2 - k*(x0+x1)/2, top + h/2 - k*(y0+y1)/2).scale(k);
+  const svg = d3.select('#graph-svg');
+  (instant ? svg : svg.transition().duration(500)).call(svgZoom.transform, t);
+}
+
+// ---- Chart picker: show every chart, or one at a time for presenting ----
+function renderChartPicker() {
+  document.getElementById('chart-pick').innerHTML = `<option value="">All charts (${CHARTS.length})</option>`
+    + CHARTS.map(ch => `<option value="${esc(ch.name)}" ${ch.name===pickedChart?'selected':''}>${esc(ch.name)}</option>`).join('');
+}
+function applyChartPick() {
+  const hide = n => !!pickedChart && n !== pickedChart;
+  d3.selectAll('.chart').classed('hidden', d => hide(d.name));
+  d3.selectAll('.node-g').classed('hidden', d => hide(d.ghost ? d.chart : chartOf(d)));
+  d3.selectAll('.link-line, .link-hit').classed('hidden', d => hide(d.chart));
+}
+function pickChart(name) {
+  pickedChart = name;
+  document.getElementById('chart-pick').value = name;
+  closeLinkPopup(); applyChartPick(); fitGraph();
+}
+function stepChart(dir) {
+  if (!CHARTS.length) return;
+  const i = CHARTS.findIndex(ch => ch.name === pickedChart);
+  const n = i < 0 ? (dir > 0 ? 0 : CHARTS.length - 1) : (i + dir + CHARTS.length) % CHARTS.length;
+  pickChart(CHARTS[n].name);
+}
+// Double-click (box or ghost): select the concept and zoom to its real box in its own chart
+function goToConcept(id) {
+  const c = byId(id); if (!c) return;
+  const shown = shownCharts();
+  if (shown && !shown.has(chartOf(c))) clearFilters();   // its chart is hidden by the search / domain filter
+  if (pickedChart && pickedChart !== chartOf(c)) {        // presenting another chart: switch, without pickChart's fit
+    pickedChart = chartOf(c);
+    document.getElementById('chart-pick').value = pickedChart;
+    closeLinkPopup(); applyChartPick();
+  }
+  selectConcept(id);   // opens the detail panel first, so the zoom below can keep clear of it
+  zoomToConcept(c);
+}
+function zoomToConcept(c) {
+  zoomTo(c.x - c._w/2 - 160, c.y - BOX_H/2 - 110, c.x + c._w/2 + 160, c.y + BOX_H/2 + 110);
+}
+
+// Transitive prerequisite chain: 'up' = everything you must know first, 'down' = everything it unlocks
+function chain(id, dir) {
+  const seen = new Set(), stack = [id];
+  while (stack.length) {
+    const cur = stack.pop();
+    G.links.forEach(l => {
+      if (l.label !== 'prerequisite_of') return;
+      const from = dir==='up' ? tid(l) : sid(l), to = dir==='up' ? sid(l) : tid(l);
+      if (from === cur && to !== id && !seen.has(to)) { seen.add(to); stack.push(to); }
+    });
+  }
+  return seen;
+}
+
+function hlConcept(id) {
+  const up = chain(id,'up'), down = chain(id,'down'), rel = new Set();
+  G.links.forEach(l => {
+    if (l.label === 'prerequisite_of') return;
+    if (sid(l)===id) rel.add(tid(l)); if (tid(l)===id) rel.add(sid(l));
+  });
+  const upS = new Set([id, ...up]), downS = new Set([id, ...down]);
+  const r = d => d.ref || d.id;   // ghosts highlight like the concept they stand for
+  d3.selectAll('.node-g')
+    .classed('hl-self', d=>r(d)===id)
+    .classed('hl-up',   d=>up.has(r(d)))
+    .classed('hl-down', d=>down.has(r(d)) && !up.has(r(d)))
+    .classed('hl-rel',  d=>rel.has(r(d)) && !up.has(r(d)) && !down.has(r(d)))
+    .classed('faded',   d=>r(d)!==id && !up.has(r(d)) && !down.has(r(d)) && !rel.has(r(d)));
+  d3.selectAll('.link-line').each(function(d) {
+    const s = d.sId, t = d.tId, pre = d.label === 'prerequisite_of';
+    const isUp = pre && upS.has(s) && upS.has(t);
+    const isDown = pre && !isUp && downS.has(s) && downS.has(t);
+    const isRel = !pre && (s===id || t===id);
+    d3.select(this)
+      .classed('hl-up', isUp).classed('hl-down', isDown).classed('hl-rel', isRel)
+      .classed('faded', !isUp && !isDown && !isRel)
+      .attr('marker-end', pre ? `url(#${isUp?'arrow-up':isDown?'arrow-down':'arrow'})` : null);
+  });
+}
+
+function clearHL() {
+  d3.selectAll('.node-g').classed('hl-self hl-up hl-down hl-rel faded', false);
+  d3.selectAll('.link-line').classed('hl-up hl-down hl-rel faded', false)
+    .attr('marker-end', d=>d.label==='prerequisite_of' ? 'url(#arrow)' : null);
+}
+
+// ============================================================
+// FILTER (search + domain) — hides in list. In the graph, either one hides charts with no match
+// and packs the rest together. Inside shown charts, the domain filter dims concepts from other
+// domains until their card is clicked (openCards); search hits get a bold outline.
+// ============================================================
+function matches(c) {
+  if (filterDomains.size && !filterDomains.has(c.domain)) return false;
+  if (!query) return true;
+  const hay = [c.label, c.domain, chartOf(c), c.notes, c.tags.join(' '), c.resources.map(r=>r.title+' '+r.url).join(' ')].join(' ').toLowerCase();
+  return query.split(/\s+/).every(q => hay.includes(q));
+}
+
+// Names of charts that have a matching concept, or null when no search / domain filter is active
+function shownCharts() {
+  return query || filterDomains.size ? new Set(G.concepts.filter(matches).map(chartOf)) : null;
+}
+
+function applyFilter() {
+  const hits = query ? new Set(G.concepts.filter(matches).map(c=>c.id)) : null;
+  d3.selectAll('.node-g').classed('match', d=>!!hits && !d.ghost && hits.has(d.id));
+
+  // Active = in a filtered domain, or in a card the user opened (ghosts follow the concept they stand for)
+  const inDomain = id => { const c = byId(id); return !filterDomains.size || !c || filterDomains.has(c.domain); };
+  const active = (id, chart) => inDomain(id) || openCards.has(chart);
+  d3.selectAll('.node-g').classed('dim', d=>!active(d.ref || d.id, d.ghost ? d.chart : chartOf(d)));
+  d3.selectAll('.link-line').classed('dim', d=>!active(d.sId, d.chart) || !active(d.tId, d.chart));
+
+  const shown = shownCharts(), out = name => !!shown && !shown.has(name);
+  d3.selectAll('.chart').classed('filtered-out', d=>out(d.name));
+  d3.selectAll('.node-g').classed('filtered-out', d=>out(d.ghost ? d.chart : chartOf(d)));
+  d3.selectAll('.link-line, .link-hit').classed('filtered-out', d=>out(d.chart));
+  document.getElementById('no-match').style.display = shown && !shown.size && G.concepts.length ? 'flex' : 'none';
+
+  // Re-pack and re-fit only when the set of shown charts changes, not on every keystroke
+  const key = shown ? [...shown].sort().join('\n') : null;
+  if (key !== shownKey) {
+    shownKey = key;
+    packCharts(shown ? CHARTS.filter(ch => shown.has(ch.name)) : CHARTS);
+    positionGraph(); fitted = false; fitGraph();   // list view: fit on the next switch to the graph
+  }
+}
+
+function clearFilters() {
+  document.getElementById('search').value = '';
+  query = ''; filterDomains.clear(); openCards.clear();
+  renderDomainFilter(); applyFilter(); renderList();
+}
+
+// ============================================================
+// CONCEPT OPERATIONS
+// ============================================================
+function addConcept() {
+  const inp = document.getElementById('c-label');
+  const label = inp.value.trim();
+  if (!label) { toast('Enter a concept name first'); inp.focus(); return; }
+  const dup = G.concepts.find(c => tkey(c.label) === tkey(label));
+  if (dup) { toast('That concept already exists'); selectConcept(dup.id); return; }
+
+  const c = migrateConcept({ id:uid(), label, domain:selDomain, chart:pickedChart || undefined, tags:splitList(document.getElementById('c-tags').value), updated:new Date().toISOString() });
+  G.concepts.push(c);
+  inp.value = ''; document.getElementById('c-tags').value = '';
+  refreshAll(); sync.changed();
+  selectConcept(c.id);
+  toast(`Added “${label}”`);
+}
+
+async function deleteConcept(id) {
+  const c = byId(id); if (!c) return;
+  const k = G.links.filter(l=>sid(l)===id || tid(l)===id).length;
+  const extra = [k && `${k} connection${k===1?'':'s'}`, c.notes.trim() && 'its notes', c.resources.length && `${c.resources.length} resource${c.resources.length===1?'':'s'}`].filter(Boolean);
+  if (!await confirmDelete(`Delete “${c.label}”?`, extra.length ? `This also deletes ${extra.length > 1 ? extra.slice(0,-1).join(', ') + ' and ' + extra.at(-1) : extra[0]}.` : '',
+                           { typeToConfirm: c.label })) return;
+  G.concepts = G.concepts.filter(x=>x.id!==id);
+  G.links = G.links.filter(l=>sid(l)!==id && tid(l)!==id);
+  closeDetail();
+  refreshAll(); sync.changed();
+  toast('Concept deleted');
+}
+
+function updateField(field, val) {
+  const c = byId(selectedId); if (!c) return;
+  if (field === 'label') {
+    val = val.trim();
+    if (!val) { openDetail(c.id); return; }
+    const dup = G.concepts.find(x => x.id!==c.id && tkey(x.label)===tkey(val));
+    if (dup) { toast('Another concept already has that name'); openDetail(c.id); return; }
+    c.label = val;
+  } else if (field === 'tags') c.tags = uniqTags(splitList(val));
+  else if (field === 'domain') c.domain = val;
+  else if (field === 'chart') { val = val.trim(); if (val) c.chart = val; else delete c.chart; }
+  touch(c);
+  refreshAll(); sync.changed();
+}
+
+function notesChanged(v) {
+  const c = byId(selectedId); if (!c) return;
+  c.notes = v; touch(c);
+  setStatus('Editing notes…', true);
+  clearTimeout(notesTimer);
+  notesTimer = setTimeout(flushNotes, 600);
+}
+function flushNotes() {
+  if (!notesTimer) return;
+  clearTimeout(notesTimer); notesTimer = null;
+  sync.changed(); updateStats();
+  if (currentView === 'list') renderList();
+}
+
+function addResource() {
+  const c = byId(selectedId); if (!c) return;
+  const title = document.getElementById('r-title').value.trim();
+  const url = document.getElementById('r-url').value.trim();
+  if (!title && !url) { toast('Enter a title or URL'); return; }
+  c.resources.push({title, url}); touch(c);
+  flushNotes(); openDetail(c.id); renderList(); updateStats(); sync.changed();
+}
+async function removeResource(i) {
+  const c = byId(selectedId); if (!c || !c.resources[i]) return;
+  const r = c.resources[i];
+  if (!await confirmDelete('Remove this resource?', r.title || r.url)) return;
+  c.resources.splice(i, 1); touch(c);
+  flushNotes(); openDetail(c.id); renderList(); updateStats(); sync.changed();
+}
+
+// ============================================================
+// LINK OPERATIONS
+// ============================================================
+function linkError(s, t, label, ignoreId) {
+  if (!s || !t) return 'Pick two concepts';
+  if (s === t) return 'A concept can’t connect to itself';
+  const others = G.links.filter(l => l.id !== ignoreId);
+  if (others.some(l => (sid(l)===s && tid(l)===t) || (sid(l)===t && tid(l)===s))) return 'Those concepts are already connected';
+  if (label === 'prerequisite_of' && chain(s,'up').has(t)) return 'That would create a prerequisite cycle';
+  return null;
+}
+
+function addLink(s, t, label) {
+  const err = linkError(s, t, label);
+  if (err) { toast(err); return false; }
+  G.links.push({ id:uid(), source:s, target:t, label, created:new Date().toISOString() });
+  flushNotes(); refreshAll(); sync.changed();
+  return true;
+}
+
+function addLinkFromForm() {
+  const s = document.getElementById('l-from').value, t = document.getElementById('l-to').value;
+  if (addLink(s, t, document.getElementById('l-type').value)) toast('Connected');
+}
+
+function addPrereq() {
+  const s = document.getElementById('d-prereq').value;
+  if (addLink(s, selectedId, 'prerequisite_of')) toast('Prerequisite added');
+}
+
+async function deleteLink(id) {
+  const l = G.links.find(l=>l.id===id); if (!l) return;
+  if (!await confirmDelete('Delete this connection?', `${byId(sid(l))?.label} ${LINK_TYPES[l.label]} ${byId(tid(l))?.label}`)) return;
+  G.links = G.links.filter(l=>l.id!==id);
+  closeLinkPopup();
+  flushNotes(); refreshAll(); sync.changed();
+  toast('Connection deleted');
+}
+
+// ============================================================
+// LINK POPUP
+// ============================================================
+function showLinkPopup(ev, linkId) {
+  const link = G.links.find(l=>l.id===linkId);
+  if (!link) return;
+  activeLinkId = link.id;
+  const s = byId(sid(link)), t = byId(tid(link));
+  const ft = document.getElementById('lp-from-to');
+  ft.innerHTML = `<strong>${esc(s?.label)}</strong> → <strong>${esc(t?.label)}</strong>`;
+  document.getElementById('lp-label').value = link.label;
+
+  const popup = document.getElementById('link-popup');
+  const gc = document.getElementById('graph-container').getBoundingClientRect();
+  let left = ev.clientX - gc.left + 12, top = ev.clientY - gc.top + 12;
+  if (left + 250 > gc.width)  left = Math.max(8, ev.clientX - gc.left - 252);
+  if (top  + 130 > gc.height) top  = Math.max(8, ev.clientY - gc.top  - 132);
+  popup.style.left = left + 'px'; popup.style.top = top + 'px';
+  popup.classList.add('open');
+}
+
+function closeLinkPopup() {
+  document.getElementById('link-popup').classList.remove('open');
+  activeLinkId = null;
+}
+
+function saveLinkEdit() {
+  const link = G.links.find(l=>l.id===activeLinkId); if (!link) return;
+  const label = document.getElementById('lp-label').value;
+  const err = linkError(sid(link), tid(link), label, link.id);
+  if (err) { toast(err); return; }
+  link.label = label;
+  closeLinkPopup(); flushNotes(); refreshAll(); sync.changed();
+  toast('Connection updated');
+}
+
+function reverseLink() {
+  const link = G.links.find(l=>l.id===activeLinkId); if (!link) return;
+  const s = sid(link), t = tid(link);
+  const err = linkError(t, s, document.getElementById('lp-label').value, link.id);
+  if (err) { toast(err); return; }
+  link.source = t; link.target = s;
+  link.label = document.getElementById('lp-label').value;
+  closeLinkPopup(); flushNotes(); refreshAll(); sync.changed();
+  toast('Direction reversed');
+}
+
+// ============================================================
+// SELECTION & DETAIL PANEL
+// ============================================================
+function selectConcept(id) {
+  flushNotes();
+  // Selecting a concept outside the filtered domains drops the domain filter. All charts come
+  // back and get re-packed, so zoom to the concept to keep it in view
+  const c = byId(id), leave = !!c && filterDomains.size > 0 && !filterDomains.has(c.domain);
+  if (leave) { filterDomains.clear(); openCards.clear(); renderDomainFilter(); applyFilter(); }
+  selectedId = id;
+  hlConcept(id);
+  openDetail(id);
+  if (leave || currentView === 'list') renderList();
+  if (leave) zoomToConcept(c);
+}
+
+function connItem(l, otherId, showLabel) {
+  const o = byId(otherId); if (!o) return '';
+  return `<div class="conn-item">
+    <span class="name" onclick="selectConcept('${escAttr(o.id)}')"><span class="dot" style="background:${esc(domainColor(o.domain))}"></span>${showLabel?`<span class="lbl">${esc(l.label.replace('_',' '))}</span>`:''}${esc(o.label)}</span>
+    <button class="x" title="Remove connection" onclick="deleteLink('${escAttr(l.id)}')">✕</button>
+  </div>`;
+}
+
+function openDetail(id) {
+  const c = byId(id);
+  const el = document.getElementById('detail');
+  if (!c) { closeDetail(); return; }
+  const prereqs = G.links.filter(l=>l.label==='prerequisite_of' && tid(l)===id);
+  const unlocks = G.links.filter(l=>l.label==='prerequisite_of' && sid(l)===id);
+  const other   = G.links.filter(l=>l.label!=='prerequisite_of' && (sid(l)===id || tid(l)===id));
+  const upAll = chain(id,'up'), downAll = chain(id,'down');
+  const candidates = G.concepts.filter(x => x.id!==id && !prereqs.some(l=>sid(l)===x.id)).sort((a,b)=>byAlpha(a.label,b.label));
+
+  el.innerHTML = `
+    <div class="d-head">
+      <span class="d-dot" style="background:${esc(domainColor(c.domain))}"></span>
+      <input id="d-label" class="d-title" type="text" value="${esc(c.label)}" onchange="updateField('label', this.value)" aria-label="Concept name">
+      <button class="icon-btn" onclick="closeDetail()" aria-label="Close">✕</button>
+    </div>
+    <div class="form-g"><label>Domain</label>
+      <select onchange="updateField('domain', this.value)">${G.domains.map(d=>`<option value="${esc(d.name)}" ${d.name===c.domain?'selected':''}>${esc(d.name)}</option>`).join('')}</select></div>
+    <div class="form-g"><label>Chart</label>
+      <input type="text" list="chart-names" value="${esc(c.chart || '')}" placeholder="${esc(c.domain)} (same as domain)" onchange="updateField('chart', this.value)">
+      <datalist id="chart-names">${chartNames().map(n=>`<option value="${esc(n)}">`).join('')}</datalist></div>
+    <div class="form-g"><label>Tags</label>
+      <input type="text" value="${esc(c.tags.join(', '))}" placeholder="comma separated" onchange="updateField('tags', this.value)"></div>
+    <div class="form-g"><label>Notes</label>
+      <textarea id="d-notes" class="notes" oninput="notesChanged(this.value)" placeholder="Definition, key formulas, intuition, pitfalls, typical interview questions…">${esc(c.notes)}</textarea></div>
+
+    <div class="d-section">
+      <h4>Resources (${c.resources.length})</h4>
+      <div class="res-list">${c.resources.map((r,i)=>`<div class="res-item">
+          <a href="${esc(safeUrl(r.url))}" target="_blank" rel="noopener noreferrer" title="${esc(r.url)}">${esc(r.title || r.url)}</a>
+          <button class="x" title="Remove" onclick="removeResource(${i})">✕</button></div>`).join('') || '<div class="muted">None yet</div>'}</div>
+      <div class="res-add">
+        <input id="r-title" type="text" placeholder="Title">
+        <input id="r-url" type="text" placeholder="URL" onkeydown="if(event.key==='Enter')addResource()">
+        <button class="btn btn-secondary btn-sm" onclick="addResource()" aria-label="Add resource">+</button>
+      </div>
+    </div>
+
+    <div class="d-section">
+      <h4><span class="sw" style="background:var(--up)"></span>Prerequisites (${prereqs.length})</h4>
+      <div class="conn-list">${prereqs.map(l=>connItem(l, sid(l))).join('') || '<div class="muted">None — this is a starting point</div>'}</div>
+      ${candidates.length ? `<div class="inline-add">
+        <select id="d-prereq">${candidates.map(x=>`<option value="${esc(x.id)}">${esc(x.label)}</option>`).join('')}</select>
+        <button class="btn btn-secondary btn-sm" onclick="addPrereq()">+ Prereq</button></div>` : ''}
+      ${upAll.size > prereqs.length ? `<div class="muted" style="margin-top:6px">${upAll.size} concepts in the full prerequisite chain (highlighted in the graph)</div>` : ''}
+    </div>
+
+    <div class="d-section">
+      <h4><span class="sw" style="background:var(--down)"></span>Unlocks (${unlocks.length})</h4>
+      <div class="conn-list">${unlocks.map(l=>connItem(l, tid(l))).join('') || '<div class="muted">Nothing yet</div>'}</div>
+      ${downAll.size > unlocks.length ? `<div class="muted">${downAll.size} concepts downstream in total</div>` : ''}
+    </div>
+
+    ${other.length ? `<div class="d-section">
+      <h4><span class="sw" style="background:var(--accent)"></span>Related / contrasts (${other.length})</h4>
+      <div class="conn-list">${other.map(l=>connItem(l, sid(l)===id ? tid(l) : sid(l), true)).join('')}</div>
+    </div>` : ''}
+
+    <details class="d-footer danger-zone">
+      <summary>Danger zone</summary>
+      <button class="btn btn-danger btn-sm" onclick="deleteConcept('${escAttr(c.id)}')">Delete concept…</button>
+    </details>`;
+  el.classList.add('open');
+}
+
+function closeDetail() {
+  flushNotes();
+  selectedId = null;
+  document.getElementById('detail').classList.remove('open');
+  clearHL();
+  if (currentView === 'list') renderList();
+}
+
+// ============================================================
+// SIDEBAR / LIST / STATS
+// ============================================================
+function renderDomainPicker() {
+  if (!G.domains.some(d=>d.name===selDomain)) selDomain = G.domains[0]?.name || 'ML';
+  const el = document.getElementById('domain-picker');
+  el.innerHTML = G.domains.map(d => `<option value="${esc(d.name)}">Domain: ${esc(d.name)}</option>`).join('')
+    + `<option value="${NEW_DOMAIN}">+ New domain…</option>`;
+  el.value = selDomain;
+}
+const NEW_DOMAIN = '';   // domain names are never empty, so this can't collide
+function pickDomain(name) { if (name === NEW_DOMAIN) newDomain(); else selDomain = name; }
+function newDomain() {
+  const name = (prompt('New domain name (e.g. Causal Inference, A/B Testing):') || '').trim();
+  if (!name) { renderDomainPicker(); return; }   // cancelled: show the previous choice again
+  if (!G.domains.some(d=>d.name.toLowerCase()===name.toLowerCase())) { G.domains.push({name, color:autoColor(name)}); sync.changed(); }
+  selDomain = G.domains.find(d=>d.name.toLowerCase()===name.toLowerCase()).name;
+  refreshAll();
+}
+
+function renderDomainFilter() {
+  const counts = d3.rollup(G.concepts, v=>v.length, c=>c.domain);
+  const used = G.domains.filter(d => counts.get(d.name));
+  filterDomains.forEach(n => { if (!counts.get(n)) filterDomains.delete(n); });   // domain no longer has concepts
+  document.getElementById('domain-filter').innerHTML =
+    `<span class="pill ${!filterDomains.size?'sel':''}" onclick="setFilterDomain(null)">All<span class="n">${G.concepts.length}</span></span>`
+    + used.map(d => `<span class="pill ${filterDomains.has(d.name)?'sel':''}" onclick="setFilterDomain('${escAttr(d.name)}')"><span class="dot" style="background:${esc(d.color)}"></span>${esc(d.name)}<span class="n">${counts.get(d.name)}</span></span>`).join('');
+}
+// Each domain pill toggles on/off (several can be on); All clears them
+function setFilterDomain(name) {
+  if (name == null) filterDomains.clear();
+  else if (filterDomains.has(name)) filterDomains.delete(name);
+  else filterDomains.add(name);
+  openCards.clear();
+  renderDomainFilter(); applyFilter(); renderList();
+}
+
+function refreshSelects() {
+  const opts = G.concepts.slice().sort((a,b)=>byAlpha(a.label,b.label))
+    .map(c=>`<option value="${esc(c.id)}">${esc(c.label)}</option>`).join('');
+  ['l-from','l-to'].forEach((id, i) => {
+    const sel = document.getElementById(id), prev = sel.value;
+    sel.innerHTML = `<option value="">${i ? 'To concept…' : 'From concept…'}</option>` + opts;
+    if (byId(prev)) sel.value = prev;
+  });
+}
+
+function renderList() {
+  const el = document.getElementById('list-view');
+  if (!G.concepts.length) { el.innerHTML = '<div class="list-empty">No concepts yet — add one in the sidebar.</div>'; return; }
+  const items = G.concepts.filter(matches);
+  if (!items.length) { el.innerHTML = '<div class="list-empty">No concepts match the current search / domain filter.</div>'; return; }
+  const groups = d3.group(items, c=>c.domain);
+  const order = G.domains.map(d=>d.name).filter(n=>groups.has(n));
+  el.innerHTML = order.map(dn => {
+    const list = groups.get(dn).slice().sort((a,b)=>byAlpha(a.label,b.label));
+    return `<section class="dom-group">
+      <h2><span class="dot" style="background:${esc(domainColor(dn))}"></span>${esc(dn)}<span class="count">${list.length}</span></h2>
+      <div class="cards">${list.map(card).join('')}</div>
+    </section>`;
+  }).join('');
+}
+
+function card(c) {
+  const pre = G.links.filter(l=>l.label==='prerequisite_of' && tid(l)===c.id).length;
+  const unl = G.links.filter(l=>l.label==='prerequisite_of' && sid(l)===c.id).length;
+  return `<div class="card ${c.id===selectedId?'sel':''}" onclick="selectConcept('${escAttr(c.id)}')">
+    <div class="card-title">${esc(c.label)}</div>
+    <div class="card-meta">${pre} prereq · ${unl} unlocks · ${c.resources.length} resource${c.resources.length===1?'':'s'}</div>
+    ${c.notes.trim() ? `<div class="card-notes">${esc(c.notes.trim().slice(0, 300))}</div>` : '<div class="card-notes"><em>No notes yet</em></div>'}
+    ${c.tags.length ? `<div class="tags">${c.tags.map(t=>`<span class="tag">${esc(t)}</span>`).join('')}</div>` : ''}
+  </div>`;
+}
+
+function updateStats() {
+  const withNotes = G.concepts.filter(c=>c.notes.trim()).length;
+  const res = d3.sum(G.concepts, c=>c.resources.length);
+  const isolated = G.concepts.filter(c=>!DEG.get(c.id)).length;
+  const s = [[G.concepts.length,'concepts'],[G.links.length,'connections'],[withNotes,'with notes'],[res,'resources'],[isolated,'unconnected'],[G.domains.filter(d=>G.concepts.some(c=>c.domain===d.name)).length,'domains']];
+  document.getElementById('stats').innerHTML = s.map(([n,l])=>`<div class="stat"><b>${n}</b><span>${l}</span></div>`).join('');
+}
+
+function renderLegend() {
+  const used = G.domains.filter(d=>G.concepts.some(c=>c.domain===d.name));
+  const line = dash => `<svg width="22" height="6"><line x1="0" y1="3" x2="22" y2="3" ${dash?`stroke-dasharray="${dash}"`:''}/></svg>`;
+  document.getElementById('legend').innerHTML = (used.length ? `<div class="row">${used.map(d=>`<span><span class="dot" style="background:${esc(d.color)}"></span>${esc(d.name)}</span>`).join('')}</div>` : '')
+    + `<div class="row"><span>${line('')}→ prerequisite of</span><span>${line('6 4')}related</span><span>${line('2 4')}contrasts</span></div>`
+    + `<div class="row"><span style="color:var(--up)">● needed first</span><span style="color:var(--down)">● unlocks</span><span>┄ dashed box = in another chart (click to go)</span></div>`;
+}
+
+function refreshAll() {
+  renderDomainPicker();
+  renderDomainFilter();
+  refreshSelects();
+  renderGraph();
+  renderList();
+  updateStats();
+  renderLegend();
+  if (selectedId) openDetail(selectedId);
+}
+
+function switchView(v) {
+  currentView = v;
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active', t.dataset.view===v));
+  document.getElementById('graph-view').classList.toggle('active', v==='graph');
+  document.getElementById('list-view').classList.toggle('active', v==='list');
+  closeLinkPopup();
+  if (v === 'graph') { if (!fitted) fitGraph(true); }
+  else renderList();
+}
+
+// ============================================================
+// UI WIRING
+// ============================================================
+function setupUI() {
+  document.getElementById('l-type').innerHTML = Object.entries(LINK_TYPES).map(([k,v])=>`<option value="${k}">${v}</option>`).join('');
+  document.getElementById('lp-label').innerHTML = Object.entries(LINK_TYPES).map(([k,v])=>`<option value="${k}">${v}</option>`).join('');
+  document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => switchView(t.dataset.view)));
+  document.getElementById('c-label').addEventListener('keydown', e => { if (e.key==='Enter') addConcept(); });
+  document.getElementById('c-tags').addEventListener('keydown', e => { if (e.key==='Enter') addConcept(); });
+  document.getElementById('search').addEventListener('input', e => {
+    query = e.target.value.trim().toLowerCase();
+    applyFilter(); renderList();
+  });
+  document.getElementById('lp-label').addEventListener('keydown', e => { if (e.key==='Enter') saveLinkEdit(); });
+  document.addEventListener('keydown', e => {
+    const mod = e.metaKey || e.ctrlKey;
+    if (mod && e.key.toLowerCase()==='s') { e.preventDefault(); flushNotes(); sync.save(); }
+    else if (mod && e.key.toLowerCase()==='f') { e.preventDefault(); document.getElementById('search').focus(); }
+    else if (e.key==='Escape') { closeLinkPopup(); if (selectedId) closeDetail(); }
+  });
+  window.addEventListener('beforeunload', () => { if (notesTimer) sync.saveLocal(); });
+}
+
+// ============================================================
+// HELPERS
+// ============================================================
+function byId(id) { return G.concepts.find(c=>c.id===id); }
+function domainColor(name) { return G.domains.find(d=>d.name===name)?.color || autoColor(name); }
+function autoColor(name) {
+  let h = 0; for (const ch of String(name)) h = (h*31 + ch.charCodeAt(0)) % 360;
+  return `hsl(${h},65%,55%)`;
+}
+function trunc(s, n) { return s.length > n ? s.slice(0, n-1) + '…' : s; }
+
+// ============================================================
+// INIT
+// ============================================================
+function init() {
+  const local = sync.loadLocal();
+  if (local) loadData(local);
+  setupGraph();
+  setupUI();
+  refreshAll();
+  setStatus('Ready · Ctrl/Cmd+S to save', false);
+  fitGraph(true);
+  sync.start();
+}
+
+init();
+</script>
+</body>
+</html>
