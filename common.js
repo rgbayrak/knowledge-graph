@@ -39,6 +39,32 @@ function sid(l){ return l.source && typeof l.source==='object' ? l.source.id : l
 function tid(l){ return l.target && typeof l.target==='object' ? l.target.id : l.target; }
 function splitList(v){ return [...new Set(String(v||'').split(',').map(t=>t.trim()).filter(Boolean))]; }
 function esc(v){ return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+// Light inline formatting for notes: **bold**, __underline__, *italic* (single line each).
+// Escapes first, so the only HTML that can come out is <strong>/<u>/<em>.
+function fmtNotes(v){
+  return esc(v)
+    .replace(/\*\*(?=\S)([^\n]*?\S)\*\*/g, '<strong>$1</strong>')
+    .replace(/__(?=\S)([^\n]*?\S)__/g, '<u>$1</u>')
+    .replace(/(^|[^*\w])\*(?=\S)([^*\n]*?\S)\*(?![*\w])/g, '$1<em>$2</em>');
+}
+// Cmd/Ctrl+B / U / I in a textarea wraps the selection in **…** / __…__ / *…* (toggles off if already wrapped)
+function enableNoteShortcuts(ta){
+  if (!ta) return;
+  const MARK = { b:'**', u:'__', i:'*' };
+  ta.addEventListener('keydown', e => {
+    const mk = (e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey && MARK[e.key.toLowerCase()];
+    if (!mk) return;
+    e.preventDefault();
+    const { selectionStart:s, selectionEnd:t, value:v } = ta, L = mk.length;
+    if (v.slice(s - L, s) === mk && v.slice(t, t + L) === mk) {       // already wrapped → unwrap
+      ta.setRangeText(v.slice(s, t), s - L, t + L, 'select');
+    } else {
+      ta.setRangeText(mk + v.slice(s, t) + mk, s, t, 'select');
+      ta.setSelectionRange(s + L, t + L);
+    }
+    ta.dispatchEvent(new Event('input', { bubbles:true }));
+  });
+}
 // For a single-quoted JS string inside a double-quoted HTML attribute
 function escAttr(v){ return esc(String(v??'').replace(/\\/g,'\\\\').replace(/'/g,"\\'")); }
 function safeUrl(u){

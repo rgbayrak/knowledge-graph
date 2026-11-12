@@ -127,6 +127,7 @@ path.arrow{fill:var(--link)} path.arrow-up{fill:var(--up)} path.arrow-down{fill:
 .chart.hidden,.node-g.hidden,.link-line.hidden,.link-hit.hidden,
 .chart.filtered-out,.node-g.filtered-out,.link-line.filtered-out,.link-hit.filtered-out{display:none}
 #graph-tools select{width:auto;max-width:220px;padding:5px 8px}
+#graph-tools .btn[aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}
 .node-g.faded,.node-g.dim{opacity:.15}
 .node-label{fill:var(--text);font-size:12px;font-weight:600;text-anchor:middle;dominant-baseline:central;pointer-events:none}
 
@@ -276,6 +277,8 @@ textarea.notes{min-height:180px;line-height:1.5;font-family:ui-monospace,SFMono-
           <button class="btn btn-secondary btn-sm" onclick="stepChart(-1)" title="Previous chart" aria-label="Previous chart">◀</button>
           <select id="chart-pick" onchange="pickChart(this.value)" aria-label="Chart"></select>
           <button class="btn btn-secondary btn-sm" onclick="stepChart(1)" title="Next chart" aria-label="Next chart">▶</button>
+          <button id="xlink-btn" class="btn btn-secondary btn-sm" onclick="toggleCrossLinks()" aria-pressed="false"
+                  title="Also show related / contrasts links to concepts in other charts (as dashed boxes)">↔ Cross-links</button>
           <button class="btn btn-secondary btn-sm" onclick="fitGraph()">⤢ Fit</button>
         </div>
         <div id="legend"></div>
@@ -306,14 +309,12 @@ textarea.notes{min-height:180px;line-height:1.5;font-family:ui-monospace,SFMono-
 // CONSTANTS
 // ============================================================
 const BUILTIN_DOMAINS = [
-  {name:'ML',             color:'#4361ee'},
-  {name:'Deep Learning',  color:'#7209b7'},
-  {name:'Stats',          color:'#06d6a0'},
-  {name:'Probability',    color:'#f77f00'},
-  {name:'Linear Algebra', color:'#4cc9f0'},
-  {name:'SQL',            color:'#f72585'},
-  {name:'Coding',         color:'#818cf8'},
-  {name:'System Design',  color:'#e9b300'},
+  {name:'ML',             color:'#3b82f6'},
+  {name:'Stats',          color:'#10b981'},
+  {name:'Probability',    color:'#f97316'},
+  {name:'Linear Algebra', color:'#06b6d4'},
+  {name:'SQL',            color:'#ec4899'},
+  {name:'System Design',  color:'#64748b'},
 ];
 const LINK_TYPES = {
   prerequisite_of: 'is a prerequisite of',
@@ -327,6 +328,8 @@ const LINK_TYPES = {
 let G = emptyData();
 let svgZoom = null, gMain = null, fitted = false, CHARTS = [], ROUTES = new Map(), GHOSTS = [];
 let pickedChart = '';   // '' = show all charts
+// Related / contrasts links to other charts become ghost boxes only when this is on (per-viewer preference)
+let showCrossLinks = (() => { try { return localStorage.getItem('ml-prep-xlinks') === '1'; } catch(_) { return false; } })();
 let d3Links = [];
 let DEG = new Map();
 let selectedId = null;
@@ -529,6 +532,8 @@ function layoutGraph() {
       if (!home.has(s) || !home.has(t) || s === t) return;
       const sIn = home.get(s) === name, tIn = home.get(t) === name;
       if (!sIn && !tIn) return;
+      // Cross-chart related / contrasts links stay in the detail panel; drawn only with ↔ Cross-links on
+      if (!(sIn && tIn) && l.label !== 'prerequisite_of' && !showCrossLinks) return;
       edges.push({ id: sIn && tIn ? l.id : `${l.id}@${name}`, linkId:l.id, label:l.label, chart:name, sId:s, tId:t,
                    source: sIn ? nodeOf.get(s) : ghostOf(s), target: tIn ? nodeOf.get(t) : ghostOf(t) });
     });
@@ -746,6 +751,12 @@ function stepChart(dir) {
   const i = CHARTS.findIndex(ch => ch.name === pickedChart);
   const n = i < 0 ? (dir > 0 ? 0 : CHARTS.length - 1) : (i + dir + CHARTS.length) % CHARTS.length;
   pickChart(CHARTS[n].name);
+}
+function toggleCrossLinks() {
+  showCrossLinks = !showCrossLinks;
+  try { localStorage.setItem('ml-prep-xlinks', showCrossLinks ? '1' : '0'); } catch(_) {}
+  document.getElementById('xlink-btn').setAttribute('aria-pressed', String(showCrossLinks));
+  closeLinkPopup(); renderGraph(); fitGraph();   // charts change size, so re-fit
 }
 // Double-click (box or ghost): select the concept and zoom to its real box in its own chart
 function goToConcept(id) {
@@ -1232,6 +1243,7 @@ function switchView(v) {
 // UI WIRING
 // ============================================================
 function setupUI() {
+  document.getElementById('xlink-btn').setAttribute('aria-pressed', String(showCrossLinks));
   document.getElementById('l-type').innerHTML = Object.entries(LINK_TYPES).map(([k,v])=>`<option value="${k}">${v}</option>`).join('');
   document.getElementById('lp-label').innerHTML = Object.entries(LINK_TYPES).map(([k,v])=>`<option value="${k}">${v}</option>`).join('');
   document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => switchView(t.dataset.view)));

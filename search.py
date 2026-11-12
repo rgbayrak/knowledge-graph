@@ -16,7 +16,8 @@ import textwrap
 
 WIDTH = 88
 INNER = WIDTH - 4
-LEGACY_TYPES = {"Paper": "Source", "Model": "Method", "Dataset": "Data"}
+LEGACY_TYPES = {"Paper": "Applied", "Source": "Applied", "Dataset": "Data", "Concept": "Model",
+                "Gap": "Review", "Application": "Toolbox"}  # same as literature.html
 HERE = os.path.dirname(os.path.abspath(__file__))
 
 
@@ -63,13 +64,19 @@ def short_authors(a):
     return ", ".join(names[:3]) + (" et al." if len(names) > 3 else "")
 
 
+def has_n(n):
+    """True if the node records a subject count (`subjects`, whole number)."""
+    return isinstance(n.get("subjects"), int) and not isinstance(n.get("subjects"), bool)
+
+
 def box(n, current):
     title = wrap(n["label"])
     lines = title[:]
     lines.append("─" * INNER)
     if n.get("url"):
         lines += wrap("URL: " + n["url"])
-    meta = " · ".join(str(v) for v in (n.get("type"), short_authors(n.get("authors")), n.get("year"), n.get("venue")) if v)
+    n_subj = f"N = {n['subjects']:,}" if has_n(n) else None
+    meta = " · ".join(str(v) for v in (n.get("type"), short_authors(n.get("authors")), n.get("year"), n.get("venue"), n_subj) if v)
     if meta:
         lines += wrap(meta)
     lines.append("")
@@ -84,24 +91,12 @@ def box(n, current):
     return f"┌{'─' * (WIDTH - 2)}┐\n{body}\n└{'─' * (WIDTH - 2)}┘"
 
 
-def related(nodes, current, results):
-    mine = {t.lower() for n in results for t in n["tags"]}
-    out = []
-    for p in all_projects(nodes):
-        if p in current:
-            continue
-        theirs = {t.lower(): t for n in nodes if p in n["projects"] for t in n["tags"]}
-        shared = sorted((theirs[k] for k in mine & theirs.keys()), key=str.lower)
-        if shared:
-            out.append((len(shared) / len(mine | theirs.keys()), p, shared))
-    return sorted(out, reverse=True)[:8]
-
-
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("query", nargs="*", help="study / project name (substring ok)")
     ap.add_argument("--tags", default="", help="comma-separated keywords to filter by")
     ap.add_argument("--any", action="store_true", help="match ANY keyword instead of ALL")
+    ap.add_argument("--min-n", type=int, help="only items with at least this many subjects")
     ap.add_argument("--list", action="store_true", help="list all projects")
     ap.add_argument("--file", default=os.path.join(HERE, "literature.json"))
     a = ap.parse_args()
@@ -132,11 +127,16 @@ def main():
             have = {t.lower() for t in n["tags"]}
             return any(w in have for w in want) if a.any else all(w in have for w in want)
         filtered = [n for n in results if ok(n)]
+    # Minimum subject count (same rule as the app: items without N are dropped while it is set)
+    if a.min_n is not None:
+        filtered = [n for n in filtered if has_n(n) and n["subjects"] >= a.min_n]
 
-    filtered.sort(key=lambda n: (n["type"] != "Source", -(n.get("year") or 0), n["label"].lower()))
+    filtered.sort(key=lambda n: (n["type"] != "Applied", -(n.get("year") or 0), n["label"].lower()))
 
     head = f"Keyword: {query}" if via_tag else "Study: " + ", ".join(current)
     note = f"  [tags {'any' if a.any else 'all'} of: {', '.join(want)}]" if want else ""
+    if a.min_n is not None:
+        note += f"  [N ≥ {a.min_n}]"
     print(f"{head} — {len(filtered)} of {len(results)} item(s){note}\n")
     for n in filtered:
         print(box(n, current))
@@ -148,11 +148,6 @@ def main():
             counts[t.lower()] = counts.get(t.lower(), 0) + 1
     if counts:
         print("\nKeywords in this study: " + ", ".join(f"{labels[k]} ({counts[k]})" for k in sorted(counts)))
-    rel = related(nodes, current, results)
-    if rel:
-        print("Related studies (shared keywords):")
-        for _, p, shared in rel:
-            print(f"  • {p} — {', '.join(shared[:5])}{' …' if len(shared) > 5 else ''}")
     if not via_tag:
         from urllib.parse import quote
         print(f"\nOpen in app: literature.html#study={quote(', '.join(current) if len(current) == 1 else query)}")
