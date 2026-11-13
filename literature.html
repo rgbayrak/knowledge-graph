@@ -54,6 +54,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 label{display:block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--c666);margin-bottom:5px}
 input[type=text],input[type=number],textarea,select{width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:7px 10px;border-radius:6px;font-size:12px;outline:none;transition:border-color .2s;font-family:inherit}
 input:focus,textarea:focus,select:focus{border-color:var(--accent)}
+/* Number fields (Year, N, Min N): plain boxes, no spinner arrows */
+input[type=number]{-moz-appearance:textfield;appearance:textfield}
+input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
 textarea{resize:vertical;min-height:70px}
 select option{background:var(--panel)}
 
@@ -439,12 +442,10 @@ a.st-title:hover{color:var(--accent);text-decoration:underline}
         <input type="text" id="st-q" placeholder="Search a study / project…  e.g. physio patterns" />
         <input type="text" id="st-filter" placeholder="Filter within results…" style="max-width:240px" />
         <input type="number" id="st-nmin" placeholder="Min N" min="0" title="Only items with at least this many subjects" style="max-width:84px" />
-        <select id="st-linked" title="Only items linked to this dataset / method (in either direction). With no study searched, shows them across all projects" style="width:auto;max-width:240px"></select>
         <select id="st-sort" title="Sort the cards" style="width:auto">
-          <option value="default">Sort: Applied first</option>
+          <option value="added">Sort: date added</option>
           <option value="used">Sort: most used</option>
-          <option value="year">Sort: newest</option>
-          <option value="n">Sort: largest N</option>
+          <option value="n">Sort: number of subjects</option>
         </select>
         <button class="btn btn-secondary btn-sm" id="st-copy">⧉ Copy as Markdown</button>
       </div>
@@ -1181,7 +1182,6 @@ function setupUI() {
   document.getElementById('st-q').addEventListener('input', e=>{ ST.query=e.target.value; ST.kw.clear(); renderStudies(); });
   document.getElementById('st-filter').addEventListener('input', e=>{ ST.filter=e.target.value; renderStudies(); });
   document.getElementById('st-nmin').addEventListener('input', e=>{ ST.nmin=parseN(e.target.value); renderStudies(); });
-  document.getElementById('st-linked').addEventListener('change', e=>setLinked(e.target.value || null, false));
   document.getElementById('st-sort').addEventListener('change', e=>{ ST.sort=e.target.value; renderStudies(); });  document.getElementById('st-copy').addEventListener('click', copyStudyMarkdown);
   window.addEventListener('hashchange', applyStudyHash);
 
@@ -1263,21 +1263,23 @@ function allProjects(){ return [...new Set(G.nodes.flatMap(n=>n.projects||[]))].
 // ============================================================
 // STUDIES VIEW — search a project, boxed summaries, keyword filters
 // ============================================================
-const ST = { query:'', filter:'', nmin:null, linked:null, sort:'default', kwOpen:false, railOpen:false, kw:new Set(), mode:'all', visible:[], title:'', projects:[] };
+const ST = { query:'', filter:'', nmin:null, sort:'added', kwOpen:false, railOpen:false, kw:new Set(), mode:'all', visible:[], title:'', projects:[] };
 
 // Number of subjects / participants (`subjects` field, whole number or null)
 // Keyword categories for the Studies filter. A tag is shown there only if it belongs to one of these
 // (exact match, or `prefix` for access:*); everything else stays visible on the cards only.
 const KW_GROUPS = [
   { name:'Modality',    tags:['fmri','smri','dwi','asl','mrs','flair','eeg','ieeg','meg','physio','eye tracking','wearables'] },
-  { name:'Physio',      tags:['ecg','ppg','eda','respiration','co2','capnography','blood pressure','heart rate','hrv','rvt'] },
+  { name:'Physio',      tags:['ecg','ppg','eda','respiration','co2','capnography','blood pressure','heart rate','hrv','rvt','eog'] },
   { name:'Access',      prefix:'access:' },
   { name:'Paradigm',    tags:['resting-state','task-fmri','naturalistic','movie-watching','video game','breath-hold','visual stimulation',
-                              'motor task','localizer','reading','language','music','emotion','memory','working memory','cognitive control'] },
-  { name:'Population',  tags:['aging','development','lifespan','clinical','epilepsy','alzheimer','twins','community sample','population cohort'] },
-  { name:'Design',      tags:['dense sampling','test-retest','longitudinal','multi-site','intervention','rct','benchmark'] },
+                              'motor task','localizer','reading','language','music','emotion','memory','working memory','cognitive control',
+                              'driving','olfaction'] },
+  { name:'Population',  tags:['aging','development','lifespan','clinical','epilepsy','alzheimer','twins','community sample','population cohort','cross-cultural'] },
+  { name:'Design',      tags:['dense sampling','test-retest','longitudinal','multi-site','intervention','rct','benchmark','sleep deprivation'] },
   { name:'Acquisition', tags:['3t','7t','multi-echo','multiband','fast fmri','high-resolution'] },
-  { name:'Collection',  tags:['openneuro','cneuromod','tuh-eeg','hcp','aomic','abcd','ukb','adni','cam-can','nki-rs','wildppg','corr','algonauts'] },
+  { name:'Collection',  tags:['openneuro','cneuromod','tuh-eeg','hcp','aomic','abcd','ukb','adni','cam-can','nki-rs','wildppg','corr','algonauts','seed'] },
+  { name:'Format',      tags:['bids'] },
 ];
 const KW_INDEX = new Map(KW_GROUPS.flatMap(g => (g.tags||[]).map((t,i)=>[t,{g,i}])));
 function kwGroupOf(k) { return KW_INDEX.get(k)?.g || KW_GROUPS.find(g=>g.prefix && k.startsWith(g.prefix)) || null; }
@@ -1347,18 +1349,12 @@ function renderStudies() {
 
   try { history.replaceState(null,'', q ? '#study='+encodeURIComponent(ST.query.trim()) : location.pathname+location.search); } catch(_) {}
 
-  renderLinkedSelect();
-  if (!q && !ST.linked) {
+  if (!q) {
     ST.visible = [];
     main.innerHTML = `<div class="st-empty">Type a study or project name above, or open the » Projects strip on the left to pick one.<br><br>
       Results show each source's title, URL and summary in its own box, with keyword filters.</div>`;
     return;
   }
-
-  // No study searched but a Linked-to filter set → everything linked to it, across all projects
-  if (!q) Object.assign(res, { nodes:G.nodes.slice() });
-  const linkedNode = ST.linked && G.nodes.find(n=>n.id===ST.linked);
-  if (linkedNode) { const ids = linkedIds(ST.linked); res.nodes = res.nodes.filter(n=>ids.has(n.id)); }
 
   // Keyword + text filters
   let nodes = res.nodes.slice();
@@ -1378,26 +1374,20 @@ function renderStudies() {
   // Subject-count range: items without N are hidden while a bound is set
   if (ST.nmin!=null) nodes = nodes.filter(n=>hasN(n) && n.subjects>=ST.nmin);
 
-  // Default: Applied first, newest first. "most used" = Used by count (links into the item)
-  const byDefault = (a,b)=>(a.type==='Applied'?0:1)-(b.type==='Applied'?0:1) || (b.year||0)-(a.year||0) || a.label.localeCompare(b.label);
+  // Sort: date added (newest first, default) / most used (Used by count) / number of subjects (largest N first)
+  const byAdded = (a,b)=>(b.created||'').localeCompare(a.created||'') || a.label.localeCompare(b.label);
   const SORTS = {
-    default: byDefault,
-    used: (a,b)=>usedBy(b)-usedBy(a) || byDefault(a,b),
-    year: (a,b)=>(b.year||0)-(a.year||0) || a.label.localeCompare(b.label),
-    n:    (a,b)=>(hasN(b)?b.subjects:-1)-(hasN(a)?a.subjects:-1) || byDefault(a,b),
+    added: byAdded,
+    used:  (a,b)=>usedBy(b)-usedBy(a) || byAdded(a,b),
+    n:     (a,b)=>(hasN(b)?b.subjects:-1)-(hasN(a)?a.subjects:-1) || byAdded(a,b),
   };
-  nodes.sort(SORTS[ST.sort] || byDefault);
+  nodes.sort(SORTS[ST.sort] || byAdded);
   ST.visible = nodes;
-  const linkedTxt = linkedNode ? `Linked to: ${linkedNode.label}` : '';
-  ST.title = !q ? linkedTxt : (res.viaTag ? `Keyword: ${ST.query.trim()}` : res.projects.join(', ')) + (linkedTxt ? ` · ${linkedTxt}` : '');
-  const linkedChip = linkedNode
-    ? `<span class="st-chip on" data-act="unlink" title="Remove the Linked-to filter">🔗 ${esc(linkedNode.label)} ×</span>` : '';
+  ST.title = res.viaTag ? `Keyword: ${ST.query.trim()}` : res.projects.join(', ');
 
-  const head = !q
-    ? `<h2>🔗 Linked to ${esc(linkedNode.label)}</h2><div class="st-sub">Items linked to it in either direction, across all projects. ${linkedChip}</div>`
-    : (res.viaTag
+  const head = res.viaTag
     ? `<h2>🏷 ${esc(ST.query.trim())}</h2><div class="st-sub">No project by that name — showing items tagged with it.</div>`
-    : `<h2>📚 ${esc(res.projects.join(' · '))}</h2>`) + (q && linkedChip ? `<div class="st-sub">Only items linked to ${linkedChip}</div>` : '');
+    : `<h2>📚 ${esc(res.projects.join(' · '))}</h2>`;
 
   // Keyword filter: only categorized keywords, one row per category (KW_GROUPS); others stay on the cards
   const chip = (k, label, count) =>
@@ -1434,7 +1424,7 @@ function studyCard(n) {
     <div class="st-card-top">${title}
       <span class="dp-badge" style="background:${c}22;color:${c}">${TYPE_ICONS[n.type]||''} ${esc(n.type)}</span></div>
     ${n.url ? `<a class="st-url" href="${esc(safeUrl(n.url))}" target="_blank" rel="noopener">${esc(n.url)}</a>` : ''}
-    ${meta || usedBy(n) ? `<div class="st-meta">${meta}${usedBy(n) ? `${meta ? ' ' : ''}<span class="st-usedby" data-act="linked" data-v="${esc(n.id)}" title="Show the items linked to this">🔗 Used by ${usedBy(n)}</span>` : ''}</div>` : ''}
+    ${meta || usedBy(n) ? `<div class="st-meta">${meta}${usedBy(n) ? `${meta ? ' ' : ''}<span class="st-usedby" data-act="details" data-v="${esc(n.id)}" title="Open Details to see what uses it">🔗 Used by ${usedBy(n)}</span>` : ''}</div>` : ''}
     ${n.summary ? `<div class="st-summary">${esc(n.summary)}</div>`
       : `<div class="st-summary empty" data-act="edit" data-v="${esc(n.id)}">No summary yet — click to add one</div>`}
     ${(n.tags||[]).length ? `<div>${uniqTags(n.tags).map(t=>`<span class="st-chip ${ST.kw.has(tkey(t))?'on':''}" data-act="kw" data-v="${esc(tkey(t))}">${esc(t)}</span>`).join('')}</div>` : ''}
@@ -1454,28 +1444,6 @@ function usedBy(n) {
   if (!USED_BY_TYPES.has(n.type)) return 0;
   const L = nodeLinks(n.id);
   return new Set([...L.in, ...L.both].map(x=>x.other.id)).size;
-}
-// Ids of every item linked to `id`, in either direction
-function linkedIds(id) {
-  const L = nodeLinks(id);
-  return new Set([...L.out, ...L.in, ...L.both].map(x=>x.other.id));
-}
-// Set / clear the Linked-to filter. fromCard = "Used by" click: show its users across all projects.
-function setLinked(id, fromCard) {
-  ST.linked = id;
-  if (fromCard) { ST.query = ''; ST.filter = ''; ST.kw.clear(); document.getElementById('st-q').value = ''; document.getElementById('st-filter').value = ''; }
-  if (currentView !== 'studies') clickView('studies'); else renderStudies();
-}
-// Linked-to dropdown: Data / Method / Toolbox / Model items that have at least one link, grouped by type
-function renderLinkedSelect() {
-  const sel = document.getElementById('st-linked');
-  if (ST.linked && !G.nodes.some(n=>n.id===ST.linked)) ST.linked = null;
-  const groups = ['Data','Method','Toolbox','Model'].map(t => [t, G.nodes
-    .filter(n => n.type===t && (linkedIds(n.id).size || n.id===ST.linked))
-    .sort((a,b)=>a.label.localeCompare(b.label))]).filter(([,ns]) => ns.length);
-  sel.innerHTML = '<option value="">🔗 Linked to: any</option>' + groups.map(([t, ns]) =>
-    `<optgroup label="${esc(t)}">${ns.map(n=>`<option value="${esc(n.id)}">${esc(n.label)} (${linkedIds(n.id).size})</option>`).join('')}</optgroup>`).join('');
-  sel.value = ST.linked || '';
 }
 
 // Card lines for a node's links, grouped by label: "uses → A, B" (outgoing), "C → uses this" (incoming), "overlaps ↔ D"
@@ -1538,8 +1506,6 @@ document.getElementById('studies-container').addEventListener('click', e=>{
     case 'clearkw': ST.kw.clear(); renderStudies(); break;
     case 'edit': openEdit(v); break;
     case 'details': showNode(v); break;
-    case 'linked': setLinked(v, true); break;
-    case 'unlink': setLinked(null, false); break;
   }
 });
 

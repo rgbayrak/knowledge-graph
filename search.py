@@ -6,7 +6,6 @@ Usage:
   python3 search.py "physio patterns" --tags hrv,sleep        # must have ALL tags
   python3 search.py "physio patterns" --tags hrv,sleep --any  # ANY of the tags
   python3 search.py --list                                    # list all projects
-  python3 search.py --linked "HCP Young"                      # everything linked to an item, all projects
   python3 search.py datasets --sort used                      # most-used datasets first
 """
 import argparse
@@ -36,18 +35,6 @@ def load(path):
 USED_BY_TYPES = {"Data", "Method", "Toolbox", "Model"}  # same as literature.html
 
 
-def linked_ids(nid, links):
-    """Ids of every item linked to nid, in either direction."""
-    out = set()
-    for l in links:
-        s, t = str(l.get("source")), str(l.get("target"))
-        if s == nid:
-            out.add(t)
-        elif t == nid:
-            out.add(s)
-    return out
-
-
 def used_by(n, links):
     """How many other items link to n (incoming or ↔ links); Data / Method / Toolbox / Model only."""
     if n["type"] not in USED_BY_TYPES:
@@ -55,14 +42,6 @@ def used_by(n, links):
     return len({str(l.get("source")) if str(l.get("target")) == n["id"] else str(l.get("target"))
                 for l in links
                 if str(l.get("target")) == n["id"] or (l.get("bidirectional") and str(l.get("source")) == n["id"])})
-
-
-def find_item(nodes, text):
-    """--linked: exact label match, else substring (Data / Method / Toolbox / Model first)."""
-    q = text.strip().lower()
-    hits = [n for n in nodes if n["label"].lower() == q] or [n for n in nodes if q in n["label"].lower()]
-    hits.sort(key=lambda n: n["type"] not in USED_BY_TYPES)
-    return hits[0] if hits else None
 
 
 def link_lines(n, by_id, links):
@@ -154,9 +133,8 @@ def main():
     ap.add_argument("--tags", default="", help="comma-separated keywords to filter by")
     ap.add_argument("--any", action="store_true", help="match ANY keyword instead of ALL")
     ap.add_argument("--min-n", type=int, help="only items with at least this many subjects")
-    ap.add_argument("--linked", default="", help="only items linked to this item (label, substring ok); alone = across all projects")
-    ap.add_argument("--sort", choices=["default", "used", "year", "n"], default="default",
-                    help="default = Applied first, newest; used = most used; year = newest; n = largest N")
+    ap.add_argument("--sort", choices=["added", "used", "n"], default="added",
+                    help="added = date added, newest first (default); used = most used; n = most subjects")
     ap.add_argument("--list", action="store_true", help="list all projects")
     ap.add_argument("--file", default=os.path.join(HERE, "literature.json"))
     a = ap.parse_args()
@@ -165,24 +143,16 @@ def main():
     by_id = {n["id"]: n for n in nodes}
     for n in nodes:
         n["_used_by"] = used_by(n, links)
-    target = None
-    if a.linked:
-        target = find_item(nodes, a.linked)
-        if not target:
-            sys.exit(f'No item matches --linked "{a.linked}".')
     query = " ".join(a.query).strip().strip("\"'")
 
-    if a.list or (not query and not target):
+    if a.list or not query:
         projs = all_projects(nodes)
         print("Projects:" if projs else "No projects yet — add a Study / Project to nodes in the app.")
         for p in projs:
             print(f"  • {p} ({sum(p in n['projects'] for n in nodes)})")
         return
 
-    current, results, via_tag = resolve(nodes, query) if query else ([], nodes, False)
-    if target:
-        ids = linked_ids(target["id"], links)
-        results = [n for n in results if n["id"] in ids]
+    current, results, via_tag = resolve(nodes, query)
     if not results:
         print(f'No study or keyword matches "{query}".')
         names = all_projects(nodes)
@@ -202,17 +172,15 @@ def main():
     if a.min_n is not None:
         filtered = [n for n in filtered if has_n(n) and n["subjects"] >= a.min_n]
 
-    default = lambda n: (n["type"] != "Applied", -(n.get("year") or 0), n["label"].lower())
-    filtered.sort(key={
-        "default": default,
-        "used": lambda n: (-n["_used_by"], *default(n)),
-        "year": lambda n: (-(n.get("year") or 0), n["label"].lower()),
-        "n": lambda n: (-(n["subjects"] if has_n(n) else -1), *default(n)),
-    }[a.sort])
+    # Same sorts as the app: date added (newest first) / most used / most subjects
+    filtered.sort(key=lambda n: n["label"].lower())
+    filtered.sort(key=lambda n: n.get("created") or "", reverse=True)
+    if a.sort == "used":
+        filtered.sort(key=lambda n: -n["_used_by"])
+    elif a.sort == "n":
+        filtered.sort(key=lambda n: -(n["subjects"] if has_n(n) else -1))
 
-    head = (f"Keyword: {query}" if via_tag else "Study: " + ", ".join(current)) if query else "All projects"
-    if target:
-        head += f" · linked to: {target['label']}"
+    head = f"Keyword: {query}" if via_tag else "Study: " + ", ".join(current)
     note = f"  [tags {'any' if a.any else 'all'} of: {', '.join(want)}]" if want else ""
     if a.min_n is not None:
         note += f"  [N ≥ {a.min_n}]"
@@ -227,7 +195,7 @@ def main():
             counts[t.lower()] = counts.get(t.lower(), 0) + 1
     if counts:
         print("\nKeywords in this study: " + ", ".join(f"{labels[k]} ({counts[k]})" for k in sorted(counts)))
-    if query and not via_tag:
+    if not via_tag:
         from urllib.parse import quote
         print(f"\nOpen in app: literature.html#study={quote(', '.join(current) if len(current) == 1 else query)}")
 
