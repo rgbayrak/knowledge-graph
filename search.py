@@ -6,6 +6,8 @@ Usage:
   python3 search.py "physio patterns" --tags hrv,sleep        # must have ALL tags
   python3 search.py "physio patterns" --tags hrv,sleep --any  # ANY of the tags
   python3 search.py --list                                    # list all projects
+  python3 search.py --linked "HCP Young"                      # everything linked to an item, all projects
+  python3 search.py datasets --sort used                      # most-used datasets first
 """
 import argparse
 import difflib
@@ -28,7 +30,56 @@ def load(path):
         n["type"] = LEGACY_TYPES.get(n.get("type"), n.get("type"))
         n["projects"] = n.get("projects") or ([n["project"]] if n.get("project") else [])
         n["tags"] = uniq_tags(n.get("tags") or [])
-    return data["nodes"]
+    return data["nodes"], data.get("links") or []
+
+
+USED_BY_TYPES = {"Data", "Method", "Toolbox", "Model"}  # same as literature.html
+
+
+def linked_ids(nid, links):
+    """Ids of every item linked to nid, in either direction."""
+    out = set()
+    for l in links:
+        s, t = str(l.get("source")), str(l.get("target"))
+        if s == nid:
+            out.add(t)
+        elif t == nid:
+            out.add(s)
+    return out
+
+
+def used_by(n, links):
+    """How many other items link to n (incoming or ↔ links); Data / Method / Toolbox / Model only."""
+    if n["type"] not in USED_BY_TYPES:
+        return 0
+    return len({str(l.get("source")) if str(l.get("target")) == n["id"] else str(l.get("target"))
+                for l in links
+                if str(l.get("target")) == n["id"] or (l.get("bidirectional") and str(l.get("source")) == n["id"])})
+
+
+def find_item(nodes, text):
+    """--linked: exact label match, else substring (Data / Method / Toolbox / Model first)."""
+    q = text.strip().lower()
+    hits = [n for n in nodes if n["label"].lower() == q] or [n for n in nodes if q in n["label"].lower()]
+    hits.sort(key=lambda n: n["type"] not in USED_BY_TYPES)
+    return hits[0] if hits else None
+
+
+def link_lines(n, by_id, links):
+    """Same grouping as the app's cards: "uses → A, B" (outgoing), "C → uses this" (incoming), "overlaps ↔ D"."""
+    out, inc, both = {}, {}, {}
+    for l in links:
+        s, t = str(l.get("source")), str(l.get("target"))
+        if n["id"] not in (s, t):
+            continue
+        other = by_id.get(t if s == n["id"] else s)
+        if not other:
+            continue
+        bucket = both if l.get("bidirectional") else out if s == n["id"] else inc
+        bucket.setdefault(l.get("label") or "linked", []).append(other["label"])
+    return ([f"{k} → {', '.join(v)}" for k, v in out.items()]
+            + [f"{', '.join(v)} → {k} this" for k, v in inc.items()]
+            + [f"{k} ↔ {', '.join(v)}" for k, v in both.items()])
 
 
 def uniq_tags(tags):
@@ -69,14 +120,16 @@ def has_n(n):
     return isinstance(n.get("subjects"), int) and not isinstance(n.get("subjects"), bool)
 
 
-def box(n, current):
+def box(n, current, links=()):
     title = wrap(n["label"])
     lines = title[:]
     lines.append("─" * INNER)
     if n.get("url"):
         lines += wrap("URL: " + n["url"])
     n_subj = f"N = {n['subjects']:,}" if has_n(n) else None
-    meta = " · ".join(str(v) for v in (n.get("type"), short_authors(n.get("authors")), n.get("year"), n.get("venue"), n_subj) if v)
+    ub = n.get("_used_by")
+    meta = " · ".join(str(v) for v in (n.get("type"), short_authors(n.get("authors")), n.get("year"), n.get("venue"), n_subj,
+                                       f"Used by {ub}" if ub else None) if v)
     if meta:
         lines += wrap(meta)
     lines.append("")
@@ -87,6 +140,10 @@ def box(n, current):
     others = [p for p in n["projects"] if p not in current]
     if others:
         lines += wrap("Also in: " + ", ".join(others))
+    if links:
+        lines.append("")
+        for l in links:
+            lines += wrap("Link: " + l)
     body = "\n".join(f"│ {l.ljust(INNER)} │" for l in lines)
     return f"┌{'─' * (WIDTH - 2)}┐\n{body}\n└{'─' * (WIDTH - 2)}┘"
 
@@ -97,21 +154,35 @@ def main():
     ap.add_argument("--tags", default="", help="comma-separated keywords to filter by")
     ap.add_argument("--any", action="store_true", help="match ANY keyword instead of ALL")
     ap.add_argument("--min-n", type=int, help="only items with at least this many subjects")
+    ap.add_argument("--linked", default="", help="only items linked to this item (label, substring ok); alone = across all projects")
+    ap.add_argument("--sort", choices=["default", "used", "year", "n"], default="default",
+                    help="default = Applied first, newest; used = most used; year = newest; n = largest N")
     ap.add_argument("--list", action="store_true", help="list all projects")
     ap.add_argument("--file", default=os.path.join(HERE, "literature.json"))
     a = ap.parse_args()
 
-    nodes = load(a.file)
+    nodes, links = load(a.file)
+    by_id = {n["id"]: n for n in nodes}
+    for n in nodes:
+        n["_used_by"] = used_by(n, links)
+    target = None
+    if a.linked:
+        target = find_item(nodes, a.linked)
+        if not target:
+            sys.exit(f'No item matches --linked "{a.linked}".')
     query = " ".join(a.query).strip().strip("\"'")
 
-    if a.list or not query:
+    if a.list or (not query and not target):
         projs = all_projects(nodes)
         print("Projects:" if projs else "No projects yet — add a Study / Project to nodes in the app.")
         for p in projs:
             print(f"  • {p} ({sum(p in n['projects'] for n in nodes)})")
         return
 
-    current, results, via_tag = resolve(nodes, query)
+    current, results, via_tag = resolve(nodes, query) if query else ([], nodes, False)
+    if target:
+        ids = linked_ids(target["id"], links)
+        results = [n for n in results if n["id"] in ids]
     if not results:
         print(f'No study or keyword matches "{query}".')
         names = all_projects(nodes)
@@ -131,15 +202,23 @@ def main():
     if a.min_n is not None:
         filtered = [n for n in filtered if has_n(n) and n["subjects"] >= a.min_n]
 
-    filtered.sort(key=lambda n: (n["type"] != "Applied", -(n.get("year") or 0), n["label"].lower()))
+    default = lambda n: (n["type"] != "Applied", -(n.get("year") or 0), n["label"].lower())
+    filtered.sort(key={
+        "default": default,
+        "used": lambda n: (-n["_used_by"], *default(n)),
+        "year": lambda n: (-(n.get("year") or 0), n["label"].lower()),
+        "n": lambda n: (-(n["subjects"] if has_n(n) else -1), *default(n)),
+    }[a.sort])
 
-    head = f"Keyword: {query}" if via_tag else "Study: " + ", ".join(current)
+    head = (f"Keyword: {query}" if via_tag else "Study: " + ", ".join(current)) if query else "All projects"
+    if target:
+        head += f" · linked to: {target['label']}"
     note = f"  [tags {'any' if a.any else 'all'} of: {', '.join(want)}]" if want else ""
     if a.min_n is not None:
         note += f"  [N ≥ {a.min_n}]"
     print(f"{head} — {len(filtered)} of {len(results)} item(s){note}\n")
     for n in filtered:
-        print(box(n, current))
+        print(box(n, current, link_lines(n, by_id, links)))
 
     counts, labels = {}, {}
     for n in results:
@@ -148,7 +227,7 @@ def main():
             counts[t.lower()] = counts.get(t.lower(), 0) + 1
     if counts:
         print("\nKeywords in this study: " + ", ".join(f"{labels[k]} ({counts[k]})" for k in sorted(counts)))
-    if not via_tag:
+    if query and not via_tag:
         from urllib.parse import quote
         print(f"\nOpen in app: literature.html#study={quote(', '.join(current) if len(current) == 1 else query)}")
 

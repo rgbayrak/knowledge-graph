@@ -75,8 +75,6 @@ select option{background:var(--panel)}
 #graph-container{flex:1;position:relative;overflow:hidden;background:var(--bg)}
 
 /* ---- Detail panel ---- */
-#detail-panel{position:absolute;right:0;top:0;bottom:0;width:300px;background:var(--panel);border-left:1px solid var(--border);padding:14px;transform:translateX(100%);transition:transform .3s ease;overflow-y:auto;z-index:20}
-#detail-panel.open{transform:translateX(0)}
 .dp-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px}
 .dp-title{font-size:15px;font-weight:700;line-height:1.3;flex:1;margin-right:8px;min-width:0;overflow-wrap:anywhere}
 .dp-badge{font-size:10px;padding:3px 8px;border-radius:12px;font-weight:700;letter-spacing:.3px;white-space:nowrap}
@@ -95,9 +93,21 @@ select option{background:var(--panel)}
 
 
 /* ---- Timeline view ---- */
-#timeline-container{position:absolute;inset:0;background:var(--bg);display:none;overflow:auto}
-#timeline-container.active{display:block}
-#timeline-svg{min-width:100%;min-height:100%}
+#timeline-container{position:absolute;inset:0;background:var(--bg);display:none;flex-direction:column}
+#timeline-container.active{display:flex}
+#tl-bar{background:var(--bg);border-bottom:1px solid var(--border);padding:10px 24px;display:flex;align-items:center;gap:6px 10px;flex-wrap:wrap;flex-shrink:0;font-size:12px}
+#tl-bar select{width:auto;max-width:220px}
+#tl-bar input[type=text]{width:180px}
+.tl-field{color:var(--c666);font-weight:600}
+#tl-types{display:flex;gap:10px;flex-wrap:wrap;margin-right:8px}
+.tl-check{display:inline-flex;align-items:center;gap:4px;color:var(--cccc);cursor:pointer;font-size:12px;text-transform:none;letter-spacing:0;margin:0;font-weight:400}
+.tl-check input{width:auto;margin:0 2px 0 0;accent-color:var(--accent)}
+.tl-uname{text-decoration-thickness:2px;text-underline-offset:3px}
+.tl-check:hover .tl-uname{text-decoration-line:underline}
+.tl-check .n{color:var(--c666);font-variant-numeric:tabular-nums}
+#tl-count{margin-left:auto;color:var(--c666);font-variant-numeric:tabular-nums}
+#tl-scroll{flex:1;overflow-y:auto;overflow-x:hidden}
+#timeline-svg{display:block}
 
 /* ---- Stats ---- */
 
@@ -119,10 +129,6 @@ select option{background:var(--panel)}
 #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 
 /* ---- Modal ---- */
-.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:500;align-items:center;justify-content:center}
-.modal-bg.open{display:flex}
-.modal-box{background:var(--panel);padding:22px;border-radius:12px;width:420px;border:1px solid var(--border);max-height:90vh;overflow-y:auto}
-.modal-box h3{margin-bottom:16px;font-size:15px;color:var(--text)}
 
 
 
@@ -163,7 +169,27 @@ hr.div{border:none;border-top:1px solid var(--btn2);margin:12px 0}
 #file-name{font-size:11px;color:var(--c555);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
 /* ---- Timeline ---- */
-.tl-author{font-size:13px;fill:var(--c888);pointer-events:none}
+#timeline-svg{font:12px system-ui,-apple-system,sans-serif;color:var(--text);
+  --glass-top:rgba(255,255,255,.10);--glass-bot:rgba(255,255,255,.025);--glass-edge-top:rgba(255,255,255,.28);--glass-edge-bot:rgba(255,255,255,.04);--glass-shadow:rgba(0,0,0,.45)}
+:root[data-theme="light"] #timeline-svg{--glass-top:rgba(255,255,255,.85);--glass-bot:rgba(255,255,255,.35);--glass-edge-top:rgba(255,255,255,1);--glass-edge-bot:rgba(140,150,200,.30);--glass-shadow:rgba(40,40,90,.12)}
+@media (prefers-color-scheme: light){:root:not([data-theme="dark"]) #timeline-svg{--glass-top:rgba(255,255,255,.85);--glass-bot:rgba(255,255,255,.35);--glass-edge-top:rgba(255,255,255,1);--glass-edge-bot:rgba(140,150,200,.30);--glass-shadow:rgba(40,40,90,.12)}}
+.tl-g1{stop-color:var(--glass-top)}.tl-g2{stop-color:var(--glass-bot)}
+.tl-e1{stop-color:var(--glass-edge-top)}.tl-e2{stop-color:var(--glass-edge-bot)}
+.tl-title{font-size:15px;font-weight:600;fill:var(--text)}
+.tl-subtitle{font-size:12px;fill:var(--c666)}
+.tl-domain{stroke:currentColor;stroke-opacity:.6;fill:none}
+.tl-tick{stroke:currentColor;stroke-opacity:.6}
+.tl-year{font-size:11px;fill:var(--c888);font-variant-numeric:tabular-nums}
+.tl-break{fill:var(--c666)}
+.tl-rule{stroke:currentColor;stroke-opacity:.12}
+.tl-item{cursor:pointer;outline:none}
+.tl-label{font-size:12px;fill:var(--cccc);pointer-events:none}
+.tl-hit{fill:url(#tl-glass);stroke:url(#tl-glass-edge);stroke-width:1;filter:drop-shadow(0 1px 3px var(--glass-shadow));transition:filter .15s}
+.tl-item:hover .tl-hit,.tl-item:focus-visible .tl-hit{filter:drop-shadow(0 3px 10px var(--glass-shadow)) brightness(1.08)}
+.tl-under{stroke-width:2;stroke-linecap:round;opacity:0;transition:opacity .12s}
+.tl-item:hover .tl-under,.tl-item:focus-visible .tl-under{opacity:1}
+.tl-item:hover .tl-label,.tl-item:focus-visible .tl-label{fill:var(--text)}
+.tl-note{font-size:12px;fill:var(--c666)}
 
 /* ---- Studies view ---- */
 #studies-container{position:absolute;inset:0;background:var(--bg);display:none;flex-direction:column;z-index:12}
@@ -220,6 +246,31 @@ a.st-title:hover{color:var(--accent);text-decoration:underline}
 .st-notes{margin-top:6px;font-size:11.5px;color:var(--c999);line-height:1.6;white-space:pre-wrap;max-height:260px;overflow-y:auto;background:var(--bg);border-radius:6px;padding:8px 10px}
 .st-foot{display:flex;gap:6px;margin-top:auto;padding-top:4px}
 .st-empty{color:var(--c555);font-size:13px;text-align:center;padding:40px 10px}
+/* Edit tab: cards collapse to a vertical strip, the edit form takes the main area */
+#st-cards-strip{display:none;width:32px;flex-shrink:0;background:var(--panel);border:none;border-right:1px solid var(--border);color:var(--c666);cursor:pointer;flex-direction:column;align-items:center;gap:8px;padding:12px 0;font-size:13px}
+#st-cards-strip:hover{background:var(--surface);color:var(--accent)}
+#st-cards-strip .sb-vlabel{writing-mode:vertical-rl;font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase}
+#st-edit,#st-detail{display:none;flex:1;overflow-y:auto;padding:16px 18px;min-width:0}
+#studies-container.paned #st-bar,#studies-container.paned #st-main{display:none}
+#studies-container.paned #st-cards-strip{display:flex}
+#studies-container[data-pane="edit"] #st-edit,#studies-container[data-pane="details"] #st-detail{display:block}
+.st-edit-box{max-width:780px;background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:18px 20px}
+.st-edit-box h3{margin-bottom:16px;font-size:15px;color:var(--text);overflow-wrap:anywhere}
+#st-detail .dp-title{font-size:18px}
+#st-detail .dp-summary,#st-detail .dp-desc{font-size:13px}
+.dp-links{margin-bottom:12px}
+.dp-addlink{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:8px;padding-top:10px;border-top:1px solid var(--btn2)}
+.dp-addlink input[type=text]{width:130px}
+.dp-addlink select{flex:1;min-width:180px;width:auto}
+.dp-addlink label,.lp-bidi{display:flex;align-items:center;gap:4px;font-size:11px;color:var(--c888);text-transform:none;letter-spacing:0;margin:0;cursor:pointer;white-space:nowrap}
+.dp-addlink input[type=checkbox],.lp-bidi input{width:auto;margin:0}
+.st-links{font-size:11px;color:var(--c888);line-height:1.6}
+.st-links b{color:var(--caaa);font-weight:600}
+.st-link{color:var(--accent);cursor:pointer}
+.st-usedby{display:inline-block;margin-left:2px;padding:1px 8px;border-radius:10px;background:var(--btn2);color:var(--accent);font-weight:600;cursor:pointer;border:1px solid transparent}
+.st-usedby:hover{border-color:var(--accent)}
+.st-link:hover{text-decoration:underline}
+#em-desc{min-height:220px}
 </style>
 </head>
 <body>
@@ -237,6 +288,8 @@ a.st-title:hover{color:var(--accent);text-decoration:underline}
   <div class="view-tabs">
     <button class="view-tab active" data-view="studies">📚 Studies</button>
     <button class="view-tab" data-view="timeline">Timeline</button>
+    <button class="view-tab" data-view="details" id="details-tab" hidden>ⓘ Details</button>
+    <button class="view-tab" data-view="edit" id="edit-tab" hidden>✏ Edit</button>
   </div>
   <div class="hdr-actions">
     <a class="nav-link" href="knowledge.html">Knowledge</a>
@@ -355,6 +408,10 @@ a.st-title:hover{color:var(--accent);text-decoration:underline}
         <label>To</label>
         <select id="edge-tgt"><option value="">Select target...</option></select>
       </div>
+      <div class="form-group">
+        <label class="lp-bidi" title="Off: From → To only. On: both directions (A ↔ B)"><input type="checkbox" id="edge-bidi" /> ↔ Both directions</label>
+      </div>
+      <datalist id="rel-list"><option>uses</option><option>extends</option><option>cites</option><option>addresses</option><option>leaves_open</option><option>trained_on</option><option>compared_to</option><option>outperforms</option><option>overlaps</option></datalist>
       <button class="btn btn-primary btn-full" id="btn-add-edge">+ Add Connection</button>
     </div>
 
@@ -364,7 +421,16 @@ a.st-title:hover{color:var(--accent);text-decoration:underline}
   <div id="graph-container">
     <!-- Timeline overlay -->
     <div id="timeline-container">
-      <svg id="timeline-svg"></svg>
+      <div id="tl-bar">
+        <span class="tl-field">Type</span>
+        <span id="tl-types" role="group" aria-label="Filter by type (none checked = all)"></span>
+        <span class="tl-field">Project</span>
+        <select id="tl-project" aria-label="Project"></select>
+        <span class="tl-field">Search</span>
+        <input type="text" id="tl-q" placeholder="title, author, tag" aria-label="Search" />
+        <span id="tl-count" aria-live="polite"></span>
+      </div>
+      <div id="tl-scroll"><svg id="timeline-svg"></svg></div>
     </div>
 
     <!-- Studies view -->
@@ -372,33 +438,81 @@ a.st-title:hover{color:var(--accent);text-decoration:underline}
       <div id="st-bar">
         <input type="text" id="st-q" placeholder="Search a study / project…  e.g. physio patterns" />
         <input type="text" id="st-filter" placeholder="Filter within results…" style="max-width:240px" />
-        <input type="number" id="st-nmin" placeholder="Min N" min="0" title="Only items with at least this many subjects" style="max-width:84px" />        <button class="btn btn-secondary btn-sm" id="st-copy">⧉ Copy as Markdown</button>
+        <input type="number" id="st-nmin" placeholder="Min N" min="0" title="Only items with at least this many subjects" style="max-width:84px" />
+        <select id="st-linked" title="Only items linked to this dataset / method (in either direction). With no study searched, shows them across all projects" style="width:auto;max-width:240px"></select>
+        <select id="st-sort" title="Sort the cards" style="width:auto">
+          <option value="default">Sort: Applied first</option>
+          <option value="used">Sort: most used</option>
+          <option value="year">Sort: newest</option>
+          <option value="n">Sort: largest N</option>
+        </select>
+        <button class="btn btn-secondary btn-sm" id="st-copy">⧉ Copy as Markdown</button>
       </div>
       <div id="st-body">
         <div id="st-rail"></div>
+        <button id="st-cards-strip" title="Show the cards (Details / Edit stay open in their tabs)">»<span class="sb-vlabel">Cards</span></button>
         <div id="st-main"></div>
+        <!-- Details tab (replaces the old slide-in detail panel) -->
+        <div id="st-detail">
+          <div class="st-edit-box">
+            <div class="dp-header">
+              <div class="dp-title" id="dp-title"></div>
+              <span class="dp-badge" id="dp-badge"></span>
+            </div>
+            <div class="dp-meta" id="dp-meta"></div>
+            <div id="dp-projects" style="margin-bottom:8px"></div>
+            <a class="dp-url" id="dp-url" target="_blank" rel="noopener"></a>
+            <div class="dp-summary" id="dp-summary"></div>
+            <div class="dp-desc" id="dp-desc"></div>
+            <div id="dp-tags" style="margin-bottom:10px"></div>
+            <div style="display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap">
+              <button class="btn btn-secondary btn-sm" id="dp-edit">✏ Edit</button>
+              <button class="btn btn-danger btn-sm" id="dp-delete">Delete</button>
+              <button class="btn btn-secondary btn-sm" style="margin-left:auto" id="dp-close" title="Close Details (Esc)">× Close</button>
+            </div>
+            <div id="dp-connections"></div>
+            <div class="dp-addlink">
+              <span class="dp-section-title" style="margin:0">+ Link</span>
+              <span style="font-size:11px;color:var(--c666)">this</span>
+              <input type="text" id="dl-rel" list="rel-list" placeholder="uses, cites…" />
+              <span style="font-size:11px;color:var(--c666)" id="dl-arrow">→</span>
+              <select id="dl-tgt"></select>
+              <label title="Both directions (A ↔ B), e.g. overlaps / compared_to"><input type="checkbox" id="dl-bidi" /> ↔ both ways</label>
+              <button class="btn btn-primary btn-sm" id="dl-add">Add</button>
+            </div>
+          </div>
+        </div>
+        <!-- Edit tab (replaces the old Edit popup) -->
+        <div id="st-edit">
+          <div class="st-edit-box">
+            <h3 id="em-title">Edit Node</h3>
+            <div class="form-group"><label>Label</label><input type="text" id="em-label" /></div>
+            <div class="form-group" style="display:flex;gap:8px">
+              <div style="flex:0 0 140px"><label>Type</label><select id="em-type">
+                <option>Applied</option><option>Model</option><option>Method</option>
+                <option>Data</option><option>Review</option><option>Toolbox</option>
+              </select></div>
+              <div style="flex:1"><label>Study / Project</label><input type="text" id="em-projects" list="project-list" placeholder="comma-separated" /></div>
+            </div>
+            <div class="form-group"><label>URL</label><input type="text" id="em-url" /></div>
+            <div class="form-group"><label>Authors</label><input type="text" id="em-authors" /></div>
+            <div class="form-group" style="display:flex;gap:8px">
+              <div style="flex:0 0 100px"><label>Year</label><input type="number" id="em-year" /></div>
+              <div style="flex:1"><label>Venue</label><input type="text" id="em-venue" /></div>
+              <div style="flex:0 0 100px"><label>N subjects</label><input type="number" id="em-subjects" min="0" /></div>
+            </div>
+            <div class="form-group"><label>Summary</label><textarea id="em-summary" style="min-height:70px"></textarea></div>
+            <div class="form-group"><label>Notes <span style="text-transform:none;letter-spacing:0;opacity:.7">· **bold** __underline__ *italic* · ⌘/Ctrl+B U I</span></label><textarea id="em-desc"></textarea></div>
+            <div class="form-group"><label>Tags</label><input type="text" id="em-tags" /></div>
+            <div style="display:flex;gap:8px;justify-content:flex-end">
+              <button class="btn btn-secondary" id="em-cancel">Cancel</button>
+              <button class="btn btn-primary" id="em-save">Save Changes</button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
-    <!-- Detail panel -->
-    <div id="detail-panel">
-      <div class="dp-header">
-        <div class="dp-title" id="dp-title"></div>
-        <span class="dp-badge" id="dp-badge"></span>
-      </div>
-      <div class="dp-meta" id="dp-meta"></div>
-      <div id="dp-projects" style="margin-bottom:8px"></div>
-      <a class="dp-url" id="dp-url" target="_blank" rel="noopener"></a>
-      <div class="dp-summary" id="dp-summary"></div>
-      <div class="dp-desc" id="dp-desc"></div>
-      <div id="dp-tags" style="margin-bottom:10px"></div>
-      <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap">
-        <button class="btn btn-secondary btn-sm" id="dp-edit">Edit</button>
-        <button class="btn btn-danger btn-sm" id="dp-delete">Delete</button>
-        <button class="btn btn-secondary btn-sm" style="margin-left:auto" id="dp-close">×</button>
-      </div>
-      <div id="dp-connections"></div>
-    </div>
   </div>
 </div>
 
@@ -413,39 +527,16 @@ a.st-title:hover{color:var(--accent);text-decoration:underline}
   <div class="lp-from-to" id="lp-from-to"></div>
   <div class="form-group" style="margin-bottom:8px">
     <label>Relationship label</label>
-    <input type="text" id="lp-label" placeholder="e.g. uses, cites, extends..." />
+    <input type="text" id="lp-label" list="rel-list" placeholder="e.g. uses, cites, extends..." />
+  </div>
+  <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px">
+    <label class="lp-bidi"><input type="checkbox" id="lp-bidi" /> ↔ Both directions</label>
+    <button class="btn btn-secondary btn-sm" id="lp-reverse" style="margin-left:auto" title="Swap From and To">⇄ Reverse</button>
   </div>
   <div style="display:flex;gap:6px">
     <button class="btn btn-primary btn-sm" id="lp-save">Save</button>
     <button class="btn btn-danger btn-sm" id="lp-delete">Delete</button>
     <button class="btn btn-secondary btn-sm" id="lp-cancel" style="margin-left:auto">×</button>
-  </div>
-</div>
-
-<!-- Edit modal -->
-<div class="modal-bg" id="edit-modal">
-  <div class="modal-box">
-    <h3>Edit Node</h3>
-    <div class="form-group"><label>Label</label><input type="text" id="em-label" /></div>
-    <div class="form-group"><label>Type</label><select id="em-type">
-      <option>Applied</option><option>Model</option><option>Method</option>
-      <option>Data</option><option>Review</option><option>Toolbox</option>
-    </select></div>
-    <div class="form-group"><label>Study / Project</label><input type="text" id="em-projects" list="project-list" placeholder="comma-separated" /></div>
-    <div class="form-group"><label>URL</label><input type="text" id="em-url" /></div>
-    <div class="form-group"><label>Authors</label><input type="text" id="em-authors" /></div>
-    <div class="form-group" style="display:flex;gap:8px">
-      <div style="flex:1"><label>Year</label><input type="number" id="em-year" /></div>
-      <div style="flex:1"><label>Venue</label><input type="text" id="em-venue" /></div>
-      <div style="flex:0 0 90px"><label>N subjects</label><input type="number" id="em-subjects" min="0" /></div>
-    </div>
-    <div class="form-group"><label>Summary</label><textarea id="em-summary" style="min-height:56px"></textarea></div>
-    <div class="form-group"><label>Notes <span style="text-transform:none;letter-spacing:0;opacity:.7">· **bold** __underline__ *italic* · ⌘/Ctrl+B U I</span></label><textarea id="em-desc"></textarea></div>
-    <div class="form-group"><label>Tags</label><input type="text" id="em-tags" /></div>
-    <div style="display:flex;gap:8px;justify-content:flex-end">
-      <button class="btn btn-secondary" id="em-cancel">Cancel</button>
-      <button class="btn btn-primary" id="em-save">Save Changes</button>
-    </div>
   </div>
 </div>
 
@@ -560,22 +651,57 @@ async function deleteNode(id) {
   G.nodes = G.nodes.filter(n=>n.id!==id);
   G.links = G.links.filter(l=>sid(l)!==id && tid(l)!==id);
   if (selectedId === id) closeDetail();
+  if (editNodeId === id) closeEdit();
   updateAll(); sync.changed();
   toast('Node deleted');
 }
 
-function addEdge() {
-  const src = document.getElementById('edge-src').value;
-  const tgt = document.getElementById('edge-tgt').value;
-  const rel = document.getElementById('edge-rel').value.trim() || document.getElementById('edge-rel-preset').value || '';
-  if (!src||!tgt) { toast('Select both nodes'); return; }
-  if (src===tgt) { toast('Cannot link to itself'); return; }
-  if (G.links.some(l=>sid(l)===src&&tid(l)===tgt)) { toast('Connection exists'); return; }
-  G.links.push({ id:uid(), source:src, target:tgt, label:rel, created:new Date().toISOString() });
-  document.getElementById('edge-rel').value='';
-  document.getElementById('edge-rel-preset').value='';
+// Links are directed (source → target, "A uses B") unless `bidirectional: true` (A ↔ B).
+// Same pair: A → B and B → A may both exist; a ↔ link covers both directions, so it blocks either.
+function linkExists(src, tgt, bidi, exceptId) {
+  return G.links.some(l => l.id!==exceptId &&
+    ((sid(l)===src && tid(l)===tgt) || ((bidi || l.bidirectional) && sid(l)===tgt && tid(l)===src)));
+}
+
+function createLink(src, tgt, rel, bidi) {
+  if (!src||!tgt) { toast('Select both nodes'); return false; }
+  if (src===tgt) { toast('Cannot link to itself'); return false; }
+  if (linkExists(src, tgt, bidi)) { toast('Connection exists'); return false; }
+  const l = { id:uid(), source:src, target:tgt, label:rel, created:new Date().toISOString() };
+  if (bidi) l.bidirectional = true;
+  G.links.push(l);
+  if (selectedId) openDetail(selectedId);
   updateAll(); sync.changed();
   toast('Connection added');
+  return true;
+}
+
+// A node's links split by direction → { out:[{l,other}], in:[…], both:[…] }
+function nodeLinks(id) {
+  const r = { out:[], in:[], both:[] };
+  for (const l of G.links) {
+    const s = sid(l), t = tid(l);
+    if (s!==id && t!==id) continue;
+    const other = G.nodes.find(n=>n.id===(s===id ? t : s));
+    if (other) (l.bidirectional ? r.both : s===id ? r.out : r.in).push({ l, other });
+  }
+  return r;
+}
+
+function addEdge() {
+  const rel = document.getElementById('edge-rel').value.trim() || document.getElementById('edge-rel-preset').value || '';
+  const bidi = document.getElementById('edge-bidi');
+  if (!createLink(document.getElementById('edge-src').value, document.getElementById('edge-tgt').value, rel, bidi.checked)) return;
+  document.getElementById('edge-rel').value='';
+  document.getElementById('edge-rel-preset').value='';
+  bidi.checked = false;
+}
+
+// "+ Link" row in the Details tab: this → target
+function addLinkFromDetail() {
+  const rel = document.getElementById('dl-rel'), bidi = document.getElementById('dl-bidi');
+  if (!createLink(selectedId, document.getElementById('dl-tgt').value, rel.value.trim(), bidi.checked)) return;
+  rel.value = ''; bidi.checked = false; document.getElementById('dl-arrow').textContent = '→';
 }
 
 async function deleteLink(id) {
@@ -603,11 +729,34 @@ function saveLinkEdit() {
   if (!activeLinkId) return;
   const link = G.links.find(l=>l.id===activeLinkId);
   if (!link) return;
+  const bidi = document.getElementById('lp-bidi').checked;
+  if (bidi && !link.bidirectional && linkExists(sid(link), tid(link), true, link.id)) {
+    toast('The reverse link already exists — delete it first'); return;
+  }
   link.label = document.getElementById('lp-label').value.trim();
+  if (bidi) link.bidirectional = true; else delete link.bidirectional;
   closeLinkPopup();
   if (selectedId) openDetail(selectedId);
-  sync.changed();
+  updateAll(); sync.changed();
   toast('Connection updated');
+}
+
+// ⇄ Reverse in the link popup: swap source and target
+function reverseLink() {
+  const link = G.links.find(l=>l.id===activeLinkId);
+  if (!link) return;
+  if (linkExists(tid(link), sid(link), link.bidirectional, link.id)) { toast('The reverse link already exists'); return; }
+  [link.source, link.target] = [tid(link), sid(link)];
+  setLinkPopupEnds(link);
+  if (selectedId) openDetail(selectedId);
+  updateAll(); sync.changed();
+  toast('Connection reversed');
+}
+
+function setLinkPopupEnds(link) {
+  const name = id => esc(G.nodes.find(n=>n.id===id)?.label || '?');
+  document.getElementById('lp-from-to').innerHTML =
+    `<strong>${name(sid(link))}</strong> ${link.bidirectional ? '↔' : '→'} <strong>${name(tid(link))}</strong>`;
 }
 
 // ============================================================
@@ -615,12 +764,20 @@ function saveLinkEdit() {
 // ============================================================
 let selectedId = null;
 
-// Select a node and show it in the detail panel (from Studies cards, Timeline, connection list)
+// Open a node in the Details tab (from Studies cards, Timeline, connection list).
+// The cards collapse to a strip; × Close returns to the view it was opened from.
+let detailFrom = 'studies';
 function showNode(id) {
   if (!G.nodes.some(n=>n.id===id)) return;
+  if (currentView==='studies' || currentView==='timeline') detailFrom = currentView;
   selectedId = id;
   openDetail(id);
+  document.getElementById('details-tab').hidden = false;
+  if (currentView!=='details') clickView('details');
+  document.getElementById('st-detail').scrollTop = 0;
 }
+
+function clickView(v) { document.querySelector(`[data-view="${v}"]`).click(); }
 
 function openDetail(id) {
   const n = G.nodes.find(n=>n.id===id);
@@ -641,69 +798,70 @@ function openDetail(id) {
   document.getElementById('dp-desc').innerHTML = notesHTML(n.description || '');
   document.getElementById('dp-tags').innerHTML = uniqTags(n.tags).map(t=>`<span class="tag ${n.type==='Review'?'gap':''}">${esc(t)}</span>`).join('');
 
-  const conns = G.links.filter(l=>sid(l)===id||tid(l)===id);
-  const dp = document.getElementById('dp-connections');
-  if (!conns.length) {
-    dp.innerHTML = '<div style="color:var(--c555);font-size:11px;margin-top:4px">No connections yet</div>';
-  } else {
-    dp.innerHTML = `<div class="dp-section-title">Connections (${conns.length})</div>` +
-      conns.map(l=>{
-        const isS = sid(l)===id;
-        const otherId = isS?tid(l):sid(l);
-        const other = G.nodes.find(n=>n.id===otherId);
-        if (!other) return '';
-        return `<div class="conn-item">
-          <div class="conn-dot" style="background:${typeColor(other.type)}"></div>
-          <div class="conn-nav" onclick="showNode('${escAttr(other.id)}')">
-            <div class="conn-name">${esc(other.label)}</div>
-            <div class="conn-rel" style="color:var(--c555);font-size:10px">${isS?'→':'←'} ${l.label ? esc(l.label) : '<span style="color:var(--link)">no label</span>'}</div>
-          </div>
-          <div class="conn-acts">
-            <button class="cact" onclick="event.stopPropagation();editLinkById('${escAttr(l.id)}')" title="Edit">✏</button>
-            <button class="cact del" onclick="event.stopPropagation();deleteLink('${escAttr(l.id)}')" title="Delete">✕</button>
-          </div>
-        </div>`;
-      }).join('')
-  }
+  // Connections, by direction: this → others / others → this / both ways
+  const L = nodeLinks(id);
+  const rel = l => l.label ? `<b>${esc(l.label)}</b>` : '<span style="color:var(--link)">no label</span>';
+  const item = ({l, other}, how) => `<div class="conn-item">
+      <div class="conn-dot" style="background:${typeColor(other.type)}"></div>
+      <div class="conn-nav" onclick="showNode('${escAttr(other.id)}')">
+        <div class="conn-name">${esc(other.label)}</div>
+        <div class="conn-rel">${how(rel(l))}</div>
+      </div>
+      <div class="conn-acts">
+        <button class="cact" onclick="event.stopPropagation();editLinkById('${escAttr(l.id)}')" title="Edit label / direction">✏</button>
+        <button class="cact del" onclick="event.stopPropagation();deleteLink('${escAttr(l.id)}')" title="Delete">✕</button>
+      </div>
+    </div>`;
+  const sec = (title, arr, how) => arr.length
+    ? `<div class="dp-section-title">${title} (${arr.length})</div>` + arr.map(x=>item(x, how)).join('') : '';
+  document.getElementById('dp-connections').innerHTML = (L.out.length + L.in.length + L.both.length)
+    ? `<div class="dp-links">${sec('This → others', L.out, r=>`this ${r} →`)}${sec('Others → this', L.in, r=>`${r} → this`)}${sec('Both ways', L.both, r=>`↔ ${r}`)}</div>`
+    : '<div style="color:var(--c555);font-size:11px;margin-bottom:4px">No connections yet</div>';
 
-  document.getElementById('dp-edit').onclick = ()=>openEditModal(id);
+  const tgt = document.getElementById('dl-tgt');
+  tgt.innerHTML = '<option value="">Select target…</option>' + [...G.nodes].filter(o=>o.id!==id)
+    .sort((a,b)=>a.label.localeCompare(b.label))
+    .map(o=>`<option value="${esc(o.id)}">${TYPE_ICONS[o.type]||''} ${esc(o.label)}</option>`).join('');
+
+  document.getElementById('dp-edit').onclick = ()=>openEdit(id);
   document.getElementById('dp-delete').onclick = ()=>deleteNode(id);
-
-  document.getElementById('detail-panel').classList.add('open');
+  document.getElementById('details-tab').title = n.label;
 }
 
+// Hide the Details tab and go back to Studies / Timeline
 function closeDetail() {
-  document.getElementById('detail-panel').classList.remove('open');
+  if (selectedId===null) return;
   selectedId = null;
+  document.getElementById('details-tab').hidden = true;
+  if (currentView==='details') clickView(detailFrom);
 }
 
 function editLinkById(linkId) {
   const link = G.links.find(l=>l.id===linkId);
   if (!link) return;
   activeLinkId = linkId;
-  const srcNode = G.nodes.find(n=>n.id===sid(link));
-  const tgtNode = G.nodes.find(n=>n.id===tid(link));
-  document.getElementById('lp-from-to').innerHTML =
-    `<strong>${esc(srcNode?.label||'?')}</strong> → <strong>${esc(tgtNode?.label||'?')}</strong>`;
+  setLinkPopupEnds(link);
   document.getElementById('lp-label').value = link.label || '';
+  document.getElementById('lp-bidi').checked = !!link.bidirectional;
 
-  // Position popup in center of detail panel
-  const dp = document.getElementById('detail-panel');
-  const gc = document.getElementById('graph-container').getBoundingClientRect();
+  // Centered near the top of the page
   const popup = document.getElementById('link-popup');
-  popup.style.left = (gc.width - dp.clientWidth - 240) / 2 + 'px';
-  popup.style.top  = '120px';
+  popup.style.left = Math.max(16, (window.innerWidth - 280) / 2) + 'px';
+  popup.style.top  = '140px';
   popup.classList.add('open');
   setTimeout(()=>document.getElementById('lp-label').focus(), 50);
 }
 
 // ============================================================
-// EDIT MODAL
+// EDIT TAB — form in the main area; the cards collapse to a strip until Save / Cancel
 // ============================================================
-function openEditModal(id) {
+function openEdit(id) {
   const n = G.nodes.find(n=>n.id===id);
   if (!n) return;
   editNodeId = id;
+  document.getElementById('em-title').textContent = 'Edit · ' + n.label;
+  const tab = document.getElementById('edit-tab');
+  tab.hidden = false; tab.title = n.label;
   document.getElementById('em-label').value = n.label;
   document.getElementById('em-type').value = n.type;
   document.getElementById('em-projects').value = (n.projects||[]).join(', ');
@@ -715,10 +873,21 @@ function openEditModal(id) {
   document.getElementById('em-subjects').value = n.subjects ?? '';
   document.getElementById('em-desc').value = n.description||'';
   document.getElementById('em-tags').value = (n.tags||[]).join(', ');
-  document.getElementById('edit-modal').classList.add('open');
+  tab.click();
+  document.getElementById('st-edit').scrollTop = 0;
+  setTimeout(()=>document.getElementById('em-label').focus(), 30);
 }
 
-function closeEditModal() { document.getElementById('edit-modal').classList.remove('open'); editNodeId=null; }
+// Hide the Edit tab; go back to the node's Details tab if it is open, else to the cards
+function closeEdit() {
+  if (editNodeId===null) return;
+  const id = editNodeId;
+  editNodeId = null;
+  document.getElementById('edit-tab').hidden = true;
+  if (currentView!=='edit') return;
+  if (selectedId===id) { openDetail(id); clickView('details'); }
+  else clickView('studies');
+}
 
 function saveEdit() {
   const n = G.nodes.find(n=>n.id===editNodeId);
@@ -735,65 +904,196 @@ function saveEdit() {
   n.description = document.getElementById('em-desc').value.trim();
   n.tags = uniqTags(splitList(document.getElementById('em-tags').value));
   n.updated = new Date().toISOString();
-  const id = editNodeId;
-  closeEditModal();
-  if (selectedId===id) openDetail(id); updateAll(); sync.changed();
-  if (currentView==='studies') renderStudies();
+  updateAll(); sync.changed();
+  closeEdit();                       // → Details (if open for this node) or Studies, re-rendered
   toast('Node updated');
 }
 
 // ============================================================
 // TIMELINE VIEW
 // ============================================================
+// Two lanes, each with its own year range: Data on top, everything else (papers, methods, models…)
+// below, each item marked with its type icon. One column per year the lane has items in; that year's
+// items stack straight down below the axis, joined by a vertical dotted line (no angled leaders).
+// Every year is visible without horizontal scrolling: when the years don't fit at a readable column
+// width (TL.minCol), a lane wraps into bands (e.g. 2005–2019, then 2020–2027), like lines of text.
+// Labels wrap onto up to 3 lines in their column (full title on hover). Filters: type, project, text.
+const TLF = { types:new Set(), project:'', q:'' };   // empty types = all
+const TL = { line:15, pad:6, vgap:6, minCol:88, maxCol:180, gapCol:18, margin:24 };
+const TL_LANES = [
+  { name:'Data', test:n=>n.type==='Data' },
+  { name:'Methods, models and toolboxes', test:n=>n.type!=='Data' },
+];
+
+// Short display name. Data: OpenNeuro datasets always lead with their ds ID (from url / label / tags),
+// followed by the dataset's own short name if it has one ("ds002785 AOMIC PIOP1", "ds003357"); other
+// datasets use the short name ("CNeuroMod friends", "Cam-CAN"), else the first author.
+// Others: "Lastname et al.", else the title.
+function tlName(n) {
+  const fa = firstAuthorEtAl(n.authors);
+  if (n.type !== 'Data') return fa || n.label;
+  const ds = [n.url, n.label, ...(n.tags||[])].join(' ').match(/\bds\d{6}\b/i)?.[0].toLowerCase();
+  const s = n.label.split(' — ')[0].trim();
+  const m = s.match(/^(.*?)\s*\(([^)]+)\)\s*(.*)$/);              // "Prefix (ACRONYM) rest"
+  const short = m && m[1].length <= 18 ? m[1]
+    : m && m[2].length <= 16 ? (m[2] + ' ' + m[3]).trim()
+    : s.length <= 22 ? s : '';
+  if (ds) return short && short.toLowerCase() !== ds ? `${ds} ${short}` : ds;
+  return short || fa || n.label;
+}
+
+// Wrap text into at most maxLines lines of width maxW (words first, long words split); ellipsis if cut
+function tlWrap(text, maxW, measure, maxLines = 3) {
+  const words = text.split(/\s+/).flatMap(w => {          // split words wider than a line into chunks
+    if (measure(w) <= maxW) return [w];
+    const parts = []; let cur = '';
+    for (const ch of w) { if (cur && measure(cur + ch + '-') > maxW) { parts.push(cur + '-'); cur = ch; } else cur += ch; }
+    return [...parts, cur];
+  });
+  const lines = [];
+  let line = '';
+  for (const w of words) {
+    const t = line ? (line.endsWith('-') ? line + w : line + ' ' + w) : w;
+    if (line && measure(t) > maxW) { lines.push(line); line = w; } else line = t;
+  }
+  if (line) lines.push(line);
+  if (lines.length > maxLines) {
+    let last = lines[maxLines - 1];
+    while (last.length > 1 && measure(last + '…') > maxW) last = last.slice(0, -1);
+    lines.length = maxLines; lines[maxLines - 1] = last.replace(/-$/, '') + '…';
+  }
+  return lines.map(l => l.replace(/-(?= )/g, ''));
+}
+
+function tlFiltered() {
+  const q = TLF.q.trim().toLowerCase();
+  return G.nodes.filter(n => n.year
+    && (!TLF.types.size || TLF.types.has(n.type))
+    && (!TLF.project || (n.projects||[]).includes(TLF.project))
+    && (!q || [n.label, n.authors, n.venue, ...(n.tags||[])].some(v => (v||'').toLowerCase().includes(q))));
+}
+
+// Filter bar: type toggles (with counts), project dropdown, text box
+function renderTimelineBar() {
+  // Rebuild the controls only when their options change, so a toggle keeps keyboard focus
+  const types = Object.keys(TYPE_COLORS).filter(t => G.nodes.some(n => n.year && n.type===t));
+  const box = document.getElementById('tl-types');
+  const html = types.map(t => {
+    const c = G.nodes.filter(n => n.year && n.type===t).length;
+    const name = `<span class="tl-uname" style="text-decoration-color:${TYPE_COLORS[t]}">${esc(t)}</span>`;
+    return `<label class="tl-check"><input type="checkbox" data-tltype="${esc(t)}">${name} <span class="n">${c}</span></label>`;
+  }).join('');
+  if (box.dataset.html !== html) { box.innerHTML = html; box.dataset.html = html; }
+  box.querySelectorAll('input').forEach(i => { i.checked = TLF.types.has(i.dataset.tltype); });
+  const sel = document.getElementById('tl-project');
+  const opts = '<option value="">All projects</option>' + allProjects().map(p => `<option value="${esc(p)}">📚 ${esc(p)}</option>`).join('');
+  if (sel.dataset.html !== opts) { sel.innerHTML = opts; sel.dataset.html = opts; }
+  if (TLF.project && !allProjects().includes(TLF.project)) TLF.project = '';
+  sel.value = TLF.project;
+}
+
 function drawTimeline() {
-  const papers = G.nodes.filter(n=>n.year).sort((a,b)=>a.year-b.year);
-  if (!papers.length) { toast('No nodes with year data'); return; }
-
-  const c = document.getElementById('timeline-container');
-  const W=Math.max(c.clientWidth, papers.length*120+200);
-  const H=c.clientHeight;
-  const margin={top:60,right:40,bottom:40,left:60};
-
-  const svg = d3.select('#timeline-svg').attr('width',W).attr('height',H);
+  renderTimelineBar();
+  const svg = d3.select('#timeline-svg');
   svg.selectAll('*').remove();
+  const items = tlFiltered().sort((a,b) => a.year-b.year || a.type.localeCompare(b.type) || a.label.localeCompare(b.label));
+  const W = document.getElementById('tl-scroll').clientWidth;
+  document.getElementById('tl-count').textContent = `${items.length} item${items.length===1?'':'s'}`;
+  svg.attr('width', W).attr('viewBox', null);
+  // Liquid-glass box paint: translucent vertical gradient fill + bright top edge (colours from CSS vars per theme)
+  const defs = svg.append('defs');
+  const grad = (id, c1, c2) => { const lg = defs.append('linearGradient').attr('id', id).attr('x1', 0).attr('y1', 0).attr('x2', 0).attr('y2', 1);
+    lg.append('stop').attr('offset', '0%').attr('class', c1); lg.append('stop').attr('offset', '100%').attr('class', c2); };
+  grad('tl-glass', 'tl-g1', 'tl-g2'); grad('tl-glass-edge', 'tl-e1', 'tl-e2');
+  if (!items.length) {
+    svg.attr('height', 80).append('text').attr('class', 'tl-note').attr('x', TL.margin).attr('y', 40)
+      .text('No items with a year match these filters.');
+    return;
+  }
 
-  const years=[...new Set(papers.map(n=>n.year))].sort();
-  const xScale = d3.scalePoint().domain(years).range([margin.left,W-margin.right]).padding(.5);
+  const inner = W - 2 * TL.margin;
+  const meas = svg.append('text').attr('class', 'tl-label').style('visibility', 'hidden');
+  const measure = t => { meas.text(t); return meas.node().getComputedTextLength(); };
+  const lanes = TL_LANES.map(l => ({ ...l, byYear: d3.group(items.filter(l.test), n => n.year) })).filter(l => l.byYear.size);
+  let y = 28;
 
-  // Axis
-  svg.append('g').attr('transform',`translate(0,${H/2})`).call(
-    d3.axisBottom(xScale).tickFormat(d=>d).tickSize(5)
-  ).call(g=>{
-    g.select('.domain').style('stroke','var(--border)');
-    g.selectAll('.tick line').style('stroke','var(--border)');
-    g.selectAll('.tick text').style('fill','var(--c666)').attr('font-size','13px');
-  });
+  lanes.forEach((lane, li) => {
+    const years = [...lane.byYear.keys()].sort((a,b) => a-b);
+    const count = d3.sum(years, yr => lane.byYear.get(yr).length);
+    // Title + subtitle, left-aligned like an Observable chart
+    svg.append('text').attr('class', 'tl-title').attr('x', TL.margin).attr('y', y).text(lane.name);
+    svg.append('text').attr('class', 'tl-subtitle').attr('x', TL.margin).attr('y', y + 18)
+      .text(`${count} item${count===1?'':'s'}, ${years.length > 1 ? `${years[0]}–${years[years.length - 1]}` : years[0]}`);
+    y += 34;
 
-  // Nodes by year
-  const byYear = d3.group(papers, n=>n.year);
-  byYear.forEach((nodes,year)=>{
-    const x=xScale(year);
-    nodes.forEach((n,i)=>{
-      const above = i%2===0;
-      const y = H/2 - (above?1:-1) * (50+Math.floor(i/2)*52);
-      const g=svg.append('g').style('cursor','pointer').on('click',()=>showNode(n.id));
-      g.append('line').attr('x1',x).attr('y1',H/2).attr('x2',x).attr('y2',y+(above?8:-8))
-        .style('stroke','var(--border)').attr('stroke-width',1);
-      g.append('circle').attr('cx',x).attr('cy',y).attr('r',6)
-        .attr('fill',typeColor(n.type)).attr('fill-opacity',.85)
-        .attr('stroke',typeColor(n.type)).attr('stroke-width',2);
-      // First author at 45°, pointing away from the axis
-      const fa = firstAuthorEtAl(n.authors);
-      if (fa) {
-        const lx = x + 8, ly = y + (above ? -8 : 8);
-        g.append('text').attr('class','tl-author')
-          .attr('x',lx).attr('y',ly).attr('dominant-baseline','central')
-          .attr('transform',`rotate(${above?-45:45},${lx},${ly})`)
-          .text(fa);
-      }
-      g.append('title').text(`${n.label} (${n.year})${n.authors?'\n'+n.authors:''}`);
+    // Bands: as many year columns as fit at a readable width (TL.minCol), balanced
+    let perBand = Math.max(1, Math.floor(inner / TL.minCol));
+    const nBands = Math.ceil(years.length / perBand);
+    perBand = Math.ceil(years.length / nBands);
+
+    d3.range(nBands).forEach(bi => {
+      const bandYears = years.slice(bi * perBand, (bi + 1) * perBand);
+      const gapBefore = bandYears.map((yr, i) => i > 0 && yr - bandYears[i-1] > 1);   // skipped years
+      const cw = Math.min(TL.maxCol, (inner - gapBefore.filter(Boolean).length * TL.gapCol) / perBand);
+      let acc = TL.margin;
+      const colX = bandYears.map((yr, i) => { if (gapBefore[i]) acc += TL.gapCol; const x = acc; acc += cw; return x; });
+      const axisY = y + 18;
+      const g = svg.append('g');
+
+      // Axis: year labels above a thin domain line, short ticks (axisTop look)
+      g.append('path').attr('class', 'tl-domain').attr('d', `M${TL.margin},${axisY}H${acc}`);
+      let bottom = axisY;
+      bandYears.forEach((yr, i) => {
+        const cx = colX[i] + cw / 2, stack = lane.byYear.get(yr);
+        g.append('text').attr('class', 'tl-year').attr('x', cx).attr('y', axisY - 8).attr('text-anchor', 'middle').text(yr);
+        if (gapBefore[i]) g.append('text').attr('class', 'tl-break').attr('x', colX[i] - TL.gapCol / 2).attr('y', axisY - 8)
+          .attr('text-anchor', 'middle').text('…');
+        // Stack: labels hang below the tick on a faint rule; a halo in the background colour keeps them legible
+        // Each item is an invisible block: the full column width, padded, stacked with a small gap
+        let top = axisY + 8;
+        const bw = cw - 10;
+        const rule = g.append('line').attr('class', 'tl-rule').attr('x1', cx).attr('x2', cx).attr('y1', axisY);
+        stack.forEach(n => {
+          const lines = tlWrap(tlName(n), bw - 2 * TL.pad, measure);
+          const h = lines.length * TL.line + 2 * TL.pad, base = top + TL.pad + 11;   // first baseline
+          const it = g.append('g').attr('class', 'tl-item')
+            .attr('tabindex', 0).attr('role', 'button').attr('aria-label', `${n.type}: ${n.label}, ${n.year}`)
+            .on('click', () => showNode(n.id))
+            .on('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); showNode(n.id); } });
+          it.append('rect').attr('class', 'tl-hit').attr('x', cx - bw / 2).attr('y', top).attr('width', bw).attr('height', h).attr('rx', 10);
+          const t = it.append('text').attr('class', 'tl-label').attr('text-anchor', 'middle').attr('y', base);
+          lines.forEach((l, k) => t.append('tspan').attr('x', cx).attr('dy', k ? TL.line : 0).text(l));
+          // Hover / focus: the label gets an underline in its category colour
+          lines.forEach((l, k) => {
+            const w = measure(l), ly = base + k * TL.line + 3.5;
+            it.insert('line', 'text').attr('class', 'tl-under').attr('x1', cx - w / 2).attr('x2', cx + w / 2)
+              .attr('y1', ly).attr('y2', ly).style('stroke', typeColor(n.type));
+          });
+          it.append('title').text(`${n.type} · ${n.label} (${n.year})${n.authors ? '\n' + n.authors : ''}`);
+          rule.attr('y2', base);
+          top += h + TL.vgap;
+        });
+        g.append('line').attr('class', 'tl-tick').attr('x1', cx).attr('x2', cx).attr('y1', axisY).attr('y2', axisY + 6);
+        bottom = Math.max(bottom, top);
+      });
+      y = bottom + 30;
     });
+    if (li < lanes.length - 1) y += 16;
   });
+  meas.remove();
+  svg.attr('height', y);
+}
+
+// Filter bar events (set up once from setupUI)
+function setupTimelineBar() {
+  // Type checkboxes: none checked = all types
+  document.getElementById('tl-types').addEventListener('change', e => {
+    const t = e.target.dataset.tltype; if (!t) return;
+    e.target.checked ? TLF.types.add(t) : TLF.types.delete(t);
+    drawTimeline();
+  });
+  document.getElementById('tl-project').addEventListener('change', e => { TLF.project = e.target.value; drawTimeline(); });
+  document.getElementById('tl-q').addEventListener('input', e => { TLF.q = e.target.value; drawTimeline(); });
 }
 
 // ============================================================
@@ -855,7 +1155,11 @@ function setupUI() {
   function switchToView(view) {
     currentView = view;
     document.getElementById('timeline-container').classList.toggle('active', view==='timeline');
-    document.getElementById('studies-container').classList.toggle('active', view==='studies');
+    const sc = document.getElementById('studies-container');
+    const paned = view==='details' || view==='edit';   // cards collapse to the » Cards strip
+    sc.classList.toggle('active', view==='studies' || paned);
+    sc.classList.toggle('paned', paned);
+    sc.dataset.pane = paned ? view : '';
   }
 
   document.querySelectorAll('.view-tab').forEach(btn=>{
@@ -876,7 +1180,9 @@ function setupUI() {
   // Studies controls
   document.getElementById('st-q').addEventListener('input', e=>{ ST.query=e.target.value; ST.kw.clear(); renderStudies(); });
   document.getElementById('st-filter').addEventListener('input', e=>{ ST.filter=e.target.value; renderStudies(); });
-  document.getElementById('st-nmin').addEventListener('input', e=>{ ST.nmin=parseN(e.target.value); renderStudies(); });  document.getElementById('st-copy').addEventListener('click', copyStudyMarkdown);
+  document.getElementById('st-nmin').addEventListener('input', e=>{ ST.nmin=parseN(e.target.value); renderStudies(); });
+  document.getElementById('st-linked').addEventListener('change', e=>setLinked(e.target.value || null, false));
+  document.getElementById('st-sort').addEventListener('change', e=>{ ST.sort=e.target.value; renderStudies(); });  document.getElementById('st-copy').addEventListener('click', copyStudyMarkdown);
   window.addEventListener('hashchange', applyStudyHash);
 
   // Buttons
@@ -892,10 +1198,14 @@ function setupUI() {
   // Detail panel close
   document.getElementById('dp-close').addEventListener('click', closeDetail);
 
-  // Edit modal
-  document.getElementById('em-cancel').addEventListener('click',closeEditModal);
+  // Details / Edit tabs (the Cards strip shows the cards; Details / Edit stay in their tabs)
+  document.getElementById('em-cancel').addEventListener('click',closeEdit);
   document.getElementById('em-save').addEventListener('click',saveEdit);
-  document.getElementById('edit-modal').addEventListener('click',e=>{ if(e.target===document.getElementById('edit-modal'))closeEditModal(); });
+  document.getElementById('st-cards-strip').addEventListener('click',()=>clickView('studies'));
+  document.getElementById('dl-add').addEventListener('click', addLinkFromDetail);
+  document.getElementById('dl-rel').addEventListener('keydown', e=>{ if (e.key==='Enter') addLinkFromDetail(); });
+  document.getElementById('dl-bidi').addEventListener('change', e=>{ document.getElementById('dl-arrow').textContent = e.target.checked ? '↔' : '→'; });
+  document.getElementById('lp-reverse').addEventListener('click', reverseLink);
 
   // Edge rel preset → fill text input
   document.getElementById('edge-rel-preset').addEventListener('change',e=>{
@@ -918,9 +1228,14 @@ function setupUI() {
 
   // Keyboard
   document.addEventListener('keydown',e=>{
-    if(e.key==='Escape'){ closeDetail(); closeEditModal(); closeLinkPopup(); }
+    if(e.key==='Escape'){ if (currentView==='details') closeDetail(); closeLinkPopup(); }
     if((e.ctrlKey||e.metaKey)&&e.key==='s'){ e.preventDefault(); sync.save(); }
   });
+
+  setupTimelineBar();
+  // Timeline fits the page: redraw on resize
+  let tlResize;
+  window.addEventListener('resize', ()=>{ clearTimeout(tlResize); tlResize = setTimeout(()=>{ if (currentView==='timeline') drawTimeline(); }, 120); });
 
   // Sidebar collapse toggle (always starts collapsed)
   document.getElementById('sb-toggle').addEventListener('click', ()=>
@@ -948,7 +1263,7 @@ function allProjects(){ return [...new Set(G.nodes.flatMap(n=>n.projects||[]))].
 // ============================================================
 // STUDIES VIEW — search a project, boxed summaries, keyword filters
 // ============================================================
-const ST = { query:'', filter:'', nmin:null, kwOpen:false, railOpen:false, kw:new Set(), mode:'all', visible:[], title:'', projects:[] };
+const ST = { query:'', filter:'', nmin:null, linked:null, sort:'default', kwOpen:false, railOpen:false, kw:new Set(), mode:'all', visible:[], title:'', projects:[] };
 
 // Number of subjects / participants (`subjects` field, whole number or null)
 // Keyword categories for the Studies filter. A tag is shown there only if it belongs to one of these
@@ -1032,12 +1347,18 @@ function renderStudies() {
 
   try { history.replaceState(null,'', q ? '#study='+encodeURIComponent(ST.query.trim()) : location.pathname+location.search); } catch(_) {}
 
-  if (!q) {
+  renderLinkedSelect();
+  if (!q && !ST.linked) {
     ST.visible = [];
     main.innerHTML = `<div class="st-empty">Type a study or project name above, or open the » Projects strip on the left to pick one.<br><br>
       Results show each source's title, URL and summary in its own box, with keyword filters.</div>`;
     return;
   }
+
+  // No study searched but a Linked-to filter set → everything linked to it, across all projects
+  if (!q) Object.assign(res, { nodes:G.nodes.slice() });
+  const linkedNode = ST.linked && G.nodes.find(n=>n.id===ST.linked);
+  if (linkedNode) { const ids = linkedIds(ST.linked); res.nodes = res.nodes.filter(n=>ids.has(n.id)); }
 
   // Keyword + text filters
   let nodes = res.nodes.slice();
@@ -1057,14 +1378,26 @@ function renderStudies() {
   // Subject-count range: items without N are hidden while a bound is set
   if (ST.nmin!=null) nodes = nodes.filter(n=>hasN(n) && n.subjects>=ST.nmin);
 
-  // Applied first, newest first
-  nodes.sort((a,b)=>(a.type==='Applied'?0:1)-(b.type==='Applied'?0:1) || (b.year||0)-(a.year||0) || a.label.localeCompare(b.label));
+  // Default: Applied first, newest first. "most used" = Used by count (links into the item)
+  const byDefault = (a,b)=>(a.type==='Applied'?0:1)-(b.type==='Applied'?0:1) || (b.year||0)-(a.year||0) || a.label.localeCompare(b.label);
+  const SORTS = {
+    default: byDefault,
+    used: (a,b)=>usedBy(b)-usedBy(a) || byDefault(a,b),
+    year: (a,b)=>(b.year||0)-(a.year||0) || a.label.localeCompare(b.label),
+    n:    (a,b)=>(hasN(b)?b.subjects:-1)-(hasN(a)?a.subjects:-1) || byDefault(a,b),
+  };
+  nodes.sort(SORTS[ST.sort] || byDefault);
   ST.visible = nodes;
-  ST.title = res.viaTag ? `Keyword: ${ST.query.trim()}` : res.projects.join(', ');
+  const linkedTxt = linkedNode ? `Linked to: ${linkedNode.label}` : '';
+  ST.title = !q ? linkedTxt : (res.viaTag ? `Keyword: ${ST.query.trim()}` : res.projects.join(', ')) + (linkedTxt ? ` · ${linkedTxt}` : '');
+  const linkedChip = linkedNode
+    ? `<span class="st-chip on" data-act="unlink" title="Remove the Linked-to filter">🔗 ${esc(linkedNode.label)} ×</span>` : '';
 
-  const head = res.viaTag
+  const head = !q
+    ? `<h2>🔗 Linked to ${esc(linkedNode.label)}</h2><div class="st-sub">Items linked to it in either direction, across all projects. ${linkedChip}</div>`
+    : (res.viaTag
     ? `<h2>🏷 ${esc(ST.query.trim())}</h2><div class="st-sub">No project by that name — showing items tagged with it.</div>`
-    : `<h2>📚 ${esc(res.projects.join(' · '))}</h2>`;
+    : `<h2>📚 ${esc(res.projects.join(' · '))}</h2>`) + (q && linkedChip ? `<div class="st-sub">Only items linked to ${linkedChip}</div>` : '');
 
   // Keyword filter: only categorized keywords, one row per category (KW_GROUPS); others stay on the cards
   const chip = (k, label, count) =>
@@ -1101,17 +1434,61 @@ function studyCard(n) {
     <div class="st-card-top">${title}
       <span class="dp-badge" style="background:${c}22;color:${c}">${TYPE_ICONS[n.type]||''} ${esc(n.type)}</span></div>
     ${n.url ? `<a class="st-url" href="${esc(safeUrl(n.url))}" target="_blank" rel="noopener">${esc(n.url)}</a>` : ''}
-    ${meta ? `<div class="st-meta">${meta}</div>` : ''}
+    ${meta || usedBy(n) ? `<div class="st-meta">${meta}${usedBy(n) ? `${meta ? ' ' : ''}<span class="st-usedby" data-act="linked" data-v="${esc(n.id)}" title="Show the items linked to this">🔗 Used by ${usedBy(n)}</span>` : ''}</div>` : ''}
     ${n.summary ? `<div class="st-summary">${esc(n.summary)}</div>`
       : `<div class="st-summary empty" data-act="edit" data-v="${esc(n.id)}">No summary yet — click to add one</div>`}
     ${(n.tags||[]).length ? `<div>${uniqTags(n.tags).map(t=>`<span class="st-chip ${ST.kw.has(tkey(t))?'on':''}" data-act="kw" data-v="${esc(tkey(t))}">${esc(t)}</span>`).join('')}</div>` : ''}
     ${others.length ? `<div class="st-also">Also in: ${others.map(p=>`<span class="tag proj" data-act="study" data-v="${esc(p)}">📚 ${esc(p)}</span>`).join('')}</div>` : ''}
+    ${cardLinks(n)}
     ${n.description ? `<details><summary>Notes</summary><div class="st-notes">${notesHTML(n.description)}</div></details>` : ''}
     <div class="st-foot">
       <button class="btn btn-secondary btn-sm" data-act="details" data-v="${esc(n.id)}">ⓘ Details</button>
       <button class="btn btn-secondary btn-sm" data-act="edit" data-v="${esc(n.id)}">✏ Edit</button>
     </div>
   </div>`;
+}
+
+// "Used by": how many other items link to this one (incoming or ↔ links)
+const USED_BY_TYPES = new Set(['Data','Method','Toolbox','Model']);
+function usedBy(n) {
+  if (!USED_BY_TYPES.has(n.type)) return 0;
+  const L = nodeLinks(n.id);
+  return new Set([...L.in, ...L.both].map(x=>x.other.id)).size;
+}
+// Ids of every item linked to `id`, in either direction
+function linkedIds(id) {
+  const L = nodeLinks(id);
+  return new Set([...L.out, ...L.in, ...L.both].map(x=>x.other.id));
+}
+// Set / clear the Linked-to filter. fromCard = "Used by" click: show its users across all projects.
+function setLinked(id, fromCard) {
+  ST.linked = id;
+  if (fromCard) { ST.query = ''; ST.filter = ''; ST.kw.clear(); document.getElementById('st-q').value = ''; document.getElementById('st-filter').value = ''; }
+  if (currentView !== 'studies') clickView('studies'); else renderStudies();
+}
+// Linked-to dropdown: Data / Method / Toolbox / Model items that have at least one link, grouped by type
+function renderLinkedSelect() {
+  const sel = document.getElementById('st-linked');
+  if (ST.linked && !G.nodes.some(n=>n.id===ST.linked)) ST.linked = null;
+  const groups = ['Data','Method','Toolbox','Model'].map(t => [t, G.nodes
+    .filter(n => n.type===t && (linkedIds(n.id).size || n.id===ST.linked))
+    .sort((a,b)=>a.label.localeCompare(b.label))]).filter(([,ns]) => ns.length);
+  sel.innerHTML = '<option value="">🔗 Linked to: any</option>' + groups.map(([t, ns]) =>
+    `<optgroup label="${esc(t)}">${ns.map(n=>`<option value="${esc(n.id)}">${esc(n.label)} (${linkedIds(n.id).size})</option>`).join('')}</optgroup>`).join('');
+  sel.value = ST.linked || '';
+}
+
+// Card lines for a node's links, grouped by label: "uses → A, B" (outgoing), "C → uses this" (incoming), "overlaps ↔ D"
+function cardLinks(n) {
+  const L = nodeLinks(n.id);
+  const name = o => `<span class="st-link" data-act="details" data-v="${esc(o.id)}">${esc(o.label)}</span>`;
+  const group = arr => { const m = new Map(); arr.forEach(({l,other}) => { const k = l.label || 'linked'; m.has(k) ? m.get(k).push(other) : m.set(k,[other]); }); return [...m]; };
+  const rows = [
+    ...group(L.out).map(([k,os]) => `<b>${esc(k)}</b> → ${os.map(name).join(', ')}`),
+    ...group(L.in).map(([k,os]) => `${os.map(name).join(', ')} → <b>${esc(k)}</b> this`),
+    ...group(L.both).map(([k,os]) => `<b>${esc(k)}</b> ↔ ${os.map(name).join(', ')}`),
+  ];
+  return rows.length ? `<div class="st-links">${rows.map(r=>`<div>${r}</div>`).join('')}</div>` : '';
 }
 
 // "Jane Smith, Bo Lee" / "Smith J; Lee B" / "Smith et al." → "Smith et al."; one author → "Smith"
@@ -1159,8 +1536,10 @@ document.getElementById('studies-container').addEventListener('click', e=>{
     case 'kw': ST.kw.has(v) ? ST.kw.delete(v) : ST.kw.add(v); renderStudies(); break;
     case 'mode': ST.mode = ST.mode==='all' ? 'any' : 'all'; renderStudies(); break;
     case 'clearkw': ST.kw.clear(); renderStudies(); break;
-    case 'edit': openEditModal(v); break;
+    case 'edit': openEdit(v); break;
     case 'details': showNode(v); break;
+    case 'linked': setLinked(v, true); break;
+    case 'unlink': setLinked(null, false); break;
   }
 });
 
